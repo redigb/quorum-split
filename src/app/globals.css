@@ -1,26 +1,183 @@
 @import "tailwindcss";
 
+/*
+ * Quorum · tokens
+ * Landing: papel térmico (crema) + tinta cálida. Un acento (violeta) para acción y progreso.
+ * Verde SOLO = confirmado/capturado. Ámbar SOLO = pendiente/autorizado sin cobrar.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #fbf9ef;
+  --paper-2: #f2f0e7;
+  --paper-3: #ebe9df;
+  --ink: #171412;
+  --ink-2: #2a2522;
+  --muted: #6f645e; /* AA sobre --paper (≈5.4:1) */
+  --faint: #8e827c; /* solo decorativo o texto grande */
+  --line: #17141214;
+  --accent: #3d2fa9;
+  --accent-soft: #e4e0f7;
+  --ok: #1d8a4e;
+  --ok-soft: #dcfae6;
+  --hold: #ffc765;
+  --danger: #ff3c34;
+  --radius: 0.75rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-hold: var(--hold);
+  --color-danger: var(--danger);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --radius-card: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--paper);
+}
+
+/* Titular gigante: grotesca negra de ancho normal, letras juntas pero legibles (≈ Youth) */
+.display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-variation-settings: "wdth" 100, "opsz" 96;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+  word-spacing: 0.04em;
+  text-wrap: balance;
+}
+
+/* Foto con parallax interno: el <img> es 120% de alto y GSAP lo desplaza dentro del marco */
+.shot {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper-3);
+}
+.shot-inner {
+  position: absolute;
+  inset: -10% 0;
+}
+
+/* Tornado 3D (cierre) */
+.tornado {
+  perspective: 1600px;
+}
+.tornado-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-style: preserve-3d;
+}
+.tornado-card {
+  position: absolute;
+  backface-visibility: hidden;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.hand {
+  font-family: var(--font-hand), cursive;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast-in {
+  animation: toast-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Grano de papel: SVG de ruido, muy sutil */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Borde dentado de ticket */
+.zigzag-b {
+  --z: 10px;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--z)) 100%;
+}
+
+/* Marquesina infinita (CSS puro) */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/*
+ * Lo que GSAP revela arranca oculto SOLO si hay movimiento permitido (evita el parpadeo).
+ * Sin JS, page.tsx incluye un <noscript> que lo vuelve visible.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none;
+  }
+  .toast-in {
+    animation: none;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
