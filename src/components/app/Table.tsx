@@ -37,7 +37,7 @@ const JOIN_ERRORS: Record<string, string> = {
 };
 
 /** El enlace único de la mesa: entras con tu nombre, marcas lo que consumiste y, al cerrarse, pagas tu parte. */
-export function Table({ code }: { code: string }) {
+export function Table({ code, token: given }: { code: string; token?: string }) {
   const toast = useToast();
   const [token, setToken] = useState<string | null | undefined>(undefined); // undefined = aún leyendo el navegador
   const [preview, setPreview] = useState<Preview | "missing" | null>(null);
@@ -46,9 +46,13 @@ export function Table({ code }: { code: string }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setToken(getMyToken(code)), 0);
+    // Con un enlace personal (`/r/CODE/p/TOKEN`, el de quien el anfitrión sentó a mano) el token viene en la URL.
+    const t = window.setTimeout(() => {
+      if (given) saveMyToken(code, given);
+      setToken(given ?? getMyToken(code));
+    }, 0);
     return () => window.clearTimeout(t);
-  }, [code]);
+  }, [code, given]);
 
   // Sin token: lo mínimo público para mostrar el formulario de unirse.
   useEffect(() => {
