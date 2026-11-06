@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { findRoom, getMyToken, saveMyToken } from "@/components/app/my-rooms";
 import { Participant } from "@/components/app/Participant";
-import { VoiceButton } from "@/components/app/VoiceButton";
+import { describeAssignment, VoiceButton } from "@/components/app/VoiceButton";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toaster";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -274,7 +274,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
       </p>
 
       <div className="mt-6">
-        <VoiceButton code={code} getHeaders={async () => ({ authorization: `Bearer ${token}` })} onDone={() => void refresh()} />
+        <VoiceButton url={`/api/rooms/${code}/voice`} getHeaders={async () => ({ authorization: `Bearer ${token}` })} describe={describeAssignment} onDone={() => void refresh()} />
       </div>
 
       <ul className="mt-6 space-y-2">

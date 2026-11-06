@@ -7,26 +7,39 @@ import { useToast } from "@/components/ui/Toaster";
 const MAX_SECONDS = 30;
 const MIME = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
 
+type Note = { tone: "ok" | "info" | "error"; title: string; body?: string };
+
 const ERRORS: Record<string, string> = {
   no_speech: "We didn't hear anything. Try again a bit closer to the mic.",
   audio_too_long: "That was too long. Keep it under 30 seconds.",
   unreadable_proposal: "We couldn't match that to the items. Say the dish names, or tap them instead.",
+  unreadable_dictation: "We couldn't find items with prices in that. Try: “two pizzas at twenty each and a beer, ten”.",
   not_available: "The table changed mode. Reload the page.",
 };
 
+/** Qué decirle a quien habló, según lo que respondió el servidor al asignar ítems en una mesa. */
+export function describeAssignment(data: { transcript: string; changed: number }): Note {
+  if (data.changed === 0) return { tone: "info", title: `We heard: “${data.transcript}”`, body: "Nothing changed. Mention the dish names, like “I had the carbonara”." };
+  return { tone: "ok", title: `Done — ${data.changed} change${data.changed > 1 ? "s" : ""}`, body: `We heard: “${data.transcript}”` };
+}
+
 /**
- * Modo de voz: mantén una nota corta ("yo comí la carbonara y compartí el agua con Leo"), se transcribe y se marcan los ítems.
- * Botón propio (sin controles nativos). `getHeaders` entrega el token de quien habla.
+ * Modo de voz: una nota corta (máx. 30 s) que se envía a `url` y se transcribe. Sirve para marcar ítems en una mesa
+ * y para dictar la cuenta al crearla. Botón propio (sin controles nativos); `getHeaders` entrega el token de quien habla.
  */
 export function VoiceButton({
-  code,
+  url,
   getHeaders,
+  fields,
+  describe,
   onDone,
   label = "Tell us what you had",
 }: {
-  code: string;
+  url: string;
   getHeaders: () => Promise<Record<string, string>>;
-  onDone: () => void;
+  fields?: Record<string, string>;
+  describe: (data: never) => Note;
+  onDone: (data: never) => void;
   label?: string;
 }) {
   const toast = useToast();
@@ -49,15 +62,15 @@ export function VoiceButton({
     try {
       const form = new FormData();
       form.set("audio", new File([blob], "voice", { type: blob.type }));
-      const res = await fetch(`/api/rooms/${code}/voice`, { method: "POST", headers: await getHeaders(), body: form });
+      for (const [k, v] of Object.entries(fields ?? {})) form.set(k, v);
+      const res = await fetch(url, { method: "POST", headers: await getHeaders(), body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast({ tone: "error", title: "Couldn't use that", body: ERRORS[data.error] ?? "Please try again, or tap the items." });
-      } else if (data.changed === 0) {
-        toast({ tone: "info", title: `We heard: “${data.transcript}”`, body: "Nothing changed. Mention the dish names, like “I had the carbonara”." });
       } else {
-        toast({ tone: "ok", title: `Done — ${data.changed} change${data.changed > 1 ? "s" : ""}`, body: `We heard: “${data.transcript}”` });
-        onDone();
+        const note = describe(data as never);
+        toast(note);
+        if (note.tone === "ok") onDone(data as never);
       }
     } catch {
       toast({ tone: "error", title: "Couldn't send it", body: "Check your connection and try again." });

@@ -9,6 +9,7 @@ import { shrinkPhoto } from "@/lib/image";
 import { Button } from "@/components/ui/Button";
 import { MyRooms, saveMyToken, saveRoom } from "@/components/app/my-rooms";
 import { SaveRoom } from "@/components/app/SaveRoom";
+import { VoiceButton } from "@/components/app/VoiceButton";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toaster";
 
@@ -141,6 +142,36 @@ export function NewBill() {
     }
   }
 
+  /* 1b · cuenta dictada en voz: se suma a lo que ya hay (sirve en el paso de foto y en el de revisión) */
+  type Dictation = {
+    transcript: string;
+    draft: {
+      merchant: string | null;
+      currency: Currency;
+      items: { name: string; quantity: number; lineTotalCents: number }[];
+      charges: ExtraCharge[];
+      printedTotalCents?: number;
+      warnings: string[];
+    };
+  };
+  const describeDictation = (d: Dictation) => ({
+    tone: "ok" as const,
+    title: `Added ${d.draft.items.length} item${d.draft.items.length > 1 ? "s" : ""}`,
+    body: `We heard: “${d.transcript}”. Check the amounts.`,
+  });
+  function applyDictation(d: Dictation) {
+    const fresh = lines.every((l) => !l.name.trim() && l.cents === 0); // sin nada útil aún: la voz manda
+    setLines((ls) => [
+      ...ls.filter((l) => l.name.trim() || l.cents !== 0),
+      ...d.draft.items.map((i) => ({ key: uid(), name: i.name, quantity: i.quantity, cents: i.lineTotalCents })),
+    ]);
+    if (fresh) setCurrency(d.draft.currency);
+    if (!merchant && d.draft.merchant) setMerchant(d.draft.merchant);
+    if (d.draft.charges.length) setCharges((cs) => [...cs, ...d.draft.charges]);
+    if (d.draft.printedTotalCents !== undefined) setPrinted(d.draft.printedTotalCents);
+    setStep("review");
+  }
+
   /* 3 · crear la mesa: queda abierta con UN enlace para todos */
   async function createRoom() {
     setBusy(true);
@@ -245,6 +276,16 @@ export function NewBill() {
               Add the items by hand
             </Button>
           </div>
+          <div className="mt-4">
+            <VoiceButton
+              url="/api/receipts/voice"
+              getHeaders={async () => ({})}
+              fields={{ currency }}
+              describe={describeDictation}
+              onDone={applyDictation}
+              label="Or say it: “two pizzas at twenty, a beer, ten”"
+            />
+          </div>
           <MyRooms />
         </section>
       )}
@@ -293,6 +334,16 @@ export function NewBill() {
           <Button variant="ghost" className="mt-3" onClick={() => setLines((ls) => [...ls, { key: uid(), name: "", quantity: 1, cents: 0 }])}>
             <Plus aria-hidden className="size-4" /> Add item
           </Button>
+          <div className="mt-3">
+            <VoiceButton
+              url="/api/receipts/voice"
+              getHeaders={async () => ({})}
+              fields={{ currency }}
+              describe={describeDictation}
+              onDone={applyDictation}
+              label="Or say it: “two pizzas at twenty, a beer, ten”"
+            />
+          </div>
 
           <div className="mt-8 rounded-3xl bg-ink p-6 text-paper">
             <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-wide text-paper/60">

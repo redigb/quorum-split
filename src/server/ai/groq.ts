@@ -4,7 +4,7 @@
  *
  * Modelos configurables por .env porque Groq rota su catálogo. Verificar en console.groq.com/docs/models.
  */
-import { assignmentSystem, claimSystem, RECEIPT_SYSTEM, wrapUserInput } from "./prompts";
+import { assignmentSystem, claimSystem, DICTATION_SYSTEM, RECEIPT_SYSTEM, wrapUserInput } from "./prompts";
 
 const BASE = "https://api.groq.com/openai/v1";
 const MODELS = {
@@ -80,6 +80,14 @@ export function interpretClaim(
   return chatJson(MODELS.text, [
     { role: "system", content: claimSystem(self, items, people) },
     { role: "user", content: wrapUserInput(text.slice(0, 500)) },
+  ]);
+}
+
+/** Cuenta dictada en voz (ya transcrita) -> JSON crudo con la misma forma que la lectura del ticket. */
+export function dictateReceipt(text: string) {
+  return chatJson(MODELS.text, [
+    { role: "system", content: DICTATION_SYSTEM },
+    { role: "user", content: wrapUserInput(text.slice(0, 1500)) },
   ]);
 }
 
