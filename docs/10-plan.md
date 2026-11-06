@@ -16,7 +16,7 @@ Entrega: **12 de noviembre de 2026**. Hoy: 31 de octubre.
 | Esquema Supabase | 🟡 | Escrito; falta aplicarlo en un proyecto Supabase |
 | `server/db` (repositorios) | ⏳ | |
 | API routes | ⏳ | Ver lista en [03-arquitectura](03-arquitectura.md) |
-| Landing (GSAP) | ✅ | `src/components/landing`, ver [09-diseno](09-diseno.md) |
+| Landing (GSAP) | 🟡 | `src/components/landing`, ver [09-diseno](09-diseno.md). **Pendiente:** conectar con el flujo real (botones "Split a bill" → `/new`, "Your rooms" → `/rooms`) y mostrar el flujo de uso |
 | UI de la app | ⏳ | Dirección en [09-diseno](09-diseno.md) |
 | AG Grid auditoría | ⏳ | |
 | Deploy Vercel + webhook registrado | ⏳ | |

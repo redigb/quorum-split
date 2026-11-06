@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { CREDITS, PHOTOS } from "./photos";
+import Link from "next/link";
 
 const PRODUCT = [
   { href: "#how", label: "How it works" },
@@ -24,13 +25,13 @@ export function Footer() {
             <p className="mt-5 max-w-sm text-lg leading-snug text-paper/85">
               Split payments for groups that cross borders. Snap the bill, split it to the cent, charge only at 100%.
             </p>
-            <a
-              href="#quorum"
+            <Link
+              href="/new"
               className="group mt-8 inline-flex items-center gap-2 rounded-full bg-paper px-6 py-3.5 text-ink transition-colors hover:bg-accent hover:text-paper"
             >
               Split a bill
               <ArrowUpRight aria-hidden className="size-4 transition-transform duration-300 group-hover:rotate-45" />
-            </a>
+            </Link>
           </div>
 
           <nav aria-label="Footer">

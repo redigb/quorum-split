@@ -8,6 +8,7 @@ import { EASE, MOTION_OK, SplitText, gsap, useGSAP } from "./gsap";
 import { Marquee } from "./Marquee";
 import { PHOTOS } from "./photos";
 import { Shot } from "./Shot";
+import Link from "next/link";
 
 const ROUTES = [
   "🇵🇪 Lima → 🇪🇸 Madrid",
@@ -225,13 +226,13 @@ export function Hero() {
         </p>
 
         <div data-reveal className="hero-fade mt-9 flex flex-wrap justify-center gap-3">
-          <a
-            href="#quorum"
+          <Link
+            href="/new"
             className="group inline-flex items-center gap-2 rounded-full bg-ink px-6 py-4 text-base text-paper transition-colors hover:bg-accent"
           >
             Split a bill
             <ArrowUpRight aria-hidden className="size-5 transition-transform duration-300 group-hover:rotate-45" />
-          </a>
+          </Link>
           <a
             href="#how"
             className="inline-flex items-center gap-2 rounded-full border border-ink/20 bg-paper/70 px-6 py-4 text-base backdrop-blur transition-colors hover:border-ink"

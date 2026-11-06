@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { MenuButton } from "./Dock";
+import Link from "next/link";
 
 const LINKS = [
   { href: "#how", label: "How it works" },
@@ -30,8 +31,14 @@ export function Nav() {
         </ul>
 
         <div className="flex items-center gap-2">
-          <a
-            href="#quorum"
+          <Link
+            href="/rooms"
+            className="hidden px-3 py-2 font-mono text-[13px] uppercase tracking-wide text-muted transition-colors hover:text-ink sm:inline"
+          >
+            Your rooms
+          </Link>
+          <Link
+            href="/new"
             className="group inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-sm text-paper transition-colors hover:bg-accent"
           >
             Split a bill
@@ -39,7 +46,7 @@ export function Nav() {
               aria-hidden
               className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
             />
-          </a>
+          </Link>
           <MenuButton />
         </div>
       </nav>

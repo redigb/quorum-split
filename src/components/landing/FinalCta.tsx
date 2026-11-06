@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { MOTION_OK, gsap, useGSAP } from "./gsap";
 import { Marquee } from "./Marquee";
 import { PHOTOS } from "./photos";
+import Link from "next/link";
 
 const RING = [
   PHOTOS.toastRed,
@@ -99,13 +100,13 @@ export function FinalCta() {
             Stop being the <span className="text-accent">collector.</span>
           </h2>
           <div className="cta-in">
-            <a
-              href="#quorum"
+            <Link
+              href="/new"
               className="group mt-10 inline-flex items-center gap-3 rounded-full bg-ink px-8 py-5 text-lg text-paper transition-colors hover:bg-accent"
             >
               Split your first bill
               <ArrowUpRight aria-hidden className="size-5 transition-transform duration-300 group-hover:rotate-45" />
-            </a>
+            </Link>
             <p className="mt-4 text-sm text-muted">Free · no account for your friends · PayPal Sandbox demo</p>
           </div>
         </div>

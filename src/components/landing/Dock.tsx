@@ -85,7 +85,7 @@ export function Dock() {
       <nav
         id="dock-nav"
         aria-label="Sections"
-        className={`fixed z-50 gap-1 rounded-full border border-ink/10 bg-paper/95 p-1.5 shadow-xl backdrop-blur-md max-lg:inset-x-3 max-lg:bottom-3 max-lg:justify-between lg:left-5 lg:top-1/2 lg:z-40 lg:-translate-y-1/2 lg:flex-col lg:gap-2 lg:flex ${open ? "flex" : "hidden"}`}
+        className={`fixed z-50 gap-1 rounded-full border border-ink/10 bg-paper/95 p-1.5 shadow-xl backdrop-blur-md inset-x-3 bottom-3 justify-between lg:hidden ${open ? "flex" : "hidden"}`}
       >
         {LINKS.map(({ id, label, Icon }) => {
           const on = active === id;

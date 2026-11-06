@@ -8,8 +8,8 @@ import { assignmentSystem, claimSystem, RECEIPT_SYSTEM, wrapUserInput } from "./
 
 const BASE = "https://api.groq.com/openai/v1";
 const MODELS = {
-  vision: process.env.GROQ_VISION_MODEL ?? "meta-llama/llama-4-scout-17b-16e-instruct",
-  text: process.env.GROQ_TEXT_MODEL ?? "llama-3.3-70b-versatile",
+  vision: process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.8-27b",
+  text: process.env.GROQ_TEXT_MODEL ?? "openai/gpt-oss-120b",
   speech: process.env.GROQ_SPEECH_MODEL ?? "whisper-large-v3-turbo",
 };
 

@@ -3,6 +3,12 @@
 > Estado: **landing construida** (`src/app/page.tsx`, `src/components/landing/`). Las pantallas de la app siguen
 > la guía "Apple" de más abajo.
 
+> **Decisión (5 nov):** la app usa **el mismo lenguaje visual de la landing** (papel crema, tinta cálida,
+> violeta, Bricolage + Plex Mono, botones píldora). Lo de "Apple" de abajo se conserva solo como
+> principios de interacción (una acción por pantalla, el monto como protagonista), **no** como paleta.
+> **Sin controles nativos del navegador** (`alert`, `confirm`, `<select>`, toasts, etc.): todo propio en
+> `src/components/ui` (`Toaster`/`useToast`, `ConfirmProvider`/`useConfirm`, `Select`, `Button`).
+
 ## Dos registros, una marca
 
 | | Landing | App (flujo de pago) |

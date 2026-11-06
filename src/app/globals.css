@@ -181,3 +181,27 @@ body {
   outline-offset: 3px;
   border-radius: 4px;
 }
+
+/* ---------- App: animaciones de los componentes propios (toast, diálogo, selector) ---------- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.toast-in { animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.sheet-in { animation: sheet-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+.pop-in { animation: pop-in 0.16s ease-out both; }
+.fade-in { animation: fade-in 0.2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in, .sheet-in, .pop-in, .fade-in { animation: none; }
+}
