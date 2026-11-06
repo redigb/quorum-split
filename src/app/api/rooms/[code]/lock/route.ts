@@ -8,35 +8,27 @@ import { logEvent } from "@/server/db/rooms";
 const MAX_HOURS = 72; // "honor period" de PayPal
 
 const Body = z.object({
-  assignments: z.array(
-    z.object({
-      itemId: z.string(),
-      assignees: z.array(z.object({ participantId: z.string(), weight: z.number().int().min(1).max(100) })).min(1),
-    }),
-  ),
   deadlineHours: z.number().int().min(1).max(MAX_HOURS).default(48),
   beneficiaryEmail: z.email().optional(),
 });
 
-/** Confirma asignaciones, calcula los montos con el núcleo y abre la sala. */
+/**
+ * Cierra la mesa: toma lo que cada quien marcó, reparte lo que nadie marcó entre todos,
+ * calcula los montos con el núcleo y abre el cobro (cada quien autoriza su parte).
+ */
 export async function POST(request: Request, ctx: { params: Promise<{ code: string }> }) {
   const { code } = await ctx.params;
   const g = await guard(request, code, "host");
   if (!g.ok) return g.response;
   const { room } = g;
   if (room.status !== "DRAFT") return Response.json({ error: "room_not_draft" }, { status: 409 });
+  if (room.participants.length < 2) return Response.json({ error: "need_two_people", message: "Wait for at least one more person to join." }, { status: 422 });
 
-  const body = Body.safeParse(await request.json().catch(() => null));
+  const body = Body.safeParse(await request.json().catch(() => ({})));
   if (!body.success) return Response.json({ error: "invalid_body", issues: body.error.issues }, { status: 400 });
 
-  const byItem = new Map(body.data.assignments.map((a) => [a.itemId, a.assignees]));
-  const people = new Set(room.participants.map((p) => p.id));
-  for (const [itemId, assignees] of byItem) {
-    if (!room.bill.items.some((i) => i.id === itemId) || assignees.some((a) => !people.has(a.participantId))) {
-      return Response.json({ error: "unknown_item_or_participant", itemId }, { status: 400 });
-    }
-  }
-  const bill = { ...room.bill, items: room.bill.items.map((i) => ({ ...i, assignees: byItem.get(i.id) ?? [] })) };
+  const everyone = room.participants.map((p) => ({ participantId: p.id, weight: 1 }));
+  const bill = { ...room.bill, items: room.bill.items.map((i) => ({ ...i, assignees: i.assignees.length ? i.assignees : everyone })) };
 
   try {
     // El núcleo valida: todo ítem asignado y el total cuadra al centavo con el ticket.

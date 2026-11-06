@@ -1,13 +1,12 @@
 "use client";
 
-import { ArrowRight, Camera, Check, Copy, Plus, Share2, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, Camera, Check, Copy, Plus, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { formatMoney, SUPPORTED_CURRENCIES, sum, toCents, type Currency } from "@/core/money";
 import type { ExtraCharge } from "@/core/types";
 import { Button } from "@/components/ui/Button";
-import { useConfirm } from "@/components/ui/Confirm";
-import { MyRooms, saveRoom } from "@/components/app/my-rooms";
+import { MyRooms, saveMyToken, saveRoom } from "@/components/app/my-rooms";
 import { SaveRoom } from "@/components/app/SaveRoom";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toaster";
@@ -21,25 +20,12 @@ interface Line {
 }
 interface Created {
   code: string;
-  hostToken: string;
-  hostUrl: string;
-  participants: { id: string; name: string; isHost: boolean; url: string }[];
-  itemIds: string[]; // mismo orden que `lines`
+  hostPath: string;
 }
-interface Locked {
-  deadlineAt: string;
-  shares: { participantId: string; totalCents: number }[];
-}
-type Step = "photo" | "review" | "people" | "assign" | "links";
-const STEPS: Step[] = ["photo", "review", "people", "assign", "links"];
+type Step = "photo" | "review" | "table";
+const STEPS: Step[] = ["photo", "review", "table"];
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const DEADLINES = [
-  { value: "6", label: "6 hours" },
-  { value: "24", label: "24 hours", hint: "Recommended" },
-  { value: "48", label: "48 hours" },
-  { value: "72", label: "72 hours", hint: "Max. PayPal honors the hold for 3 days" },
-] as const;
 
 async function api<T>(url: string, init: RequestInit & { token?: string; json?: unknown } = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -56,7 +42,6 @@ const ERRORS: Record<string, string> = {
   unsupported_type: "Use a JPG, PNG or WebP photo.",
   image_too_large: "That photo is over 4 MB. Try a smaller one.",
   extraction_failed: "The reader is busy right now. Try again, or add the items by hand.",
-  UNASSIGNED_ITEM: "Every item needs at least one person.",
 };
 const explain = (e: unknown) => (e instanceof Error ? ERRORS[(e as { code?: string }).code ?? ""] ?? e.message : "Something went wrong");
 
@@ -100,23 +85,9 @@ function MoneyField({ cents, onChange, label }: { cents: number; onChange: (c: n
   );
 }
 
-function Initial({ name, on, size = "size-10" }: { name: string; on?: boolean; size?: string }) {
-  return (
-    <span
-      translate="no"
-      className={`grid ${size} shrink-0 place-items-center rounded-full font-mono text-sm uppercase transition-colors ${
-        on ? "bg-accent text-paper" : "bg-paper-3 text-ink"
-      }`}
-    >
-      {name.trim().charAt(0) || "?"}
-    </span>
-  );
-}
-
 /* ---------- flujo ---------- */
 export function NewBill() {
   const toast = useToast();
-  const confirm = useConfirm();
 
   const [step, setStep] = useState<Step>("photo");
   const [busy, setBusy] = useState(false);
@@ -126,13 +97,7 @@ export function NewBill() {
   const [charges, setCharges] = useState<ExtraCharge[]>([]);
   const [printed, setPrinted] = useState<number | null>(null);
   const [hostName, setHostName] = useState("");
-  const [others, setOthers] = useState<string[]>([]);
-  const [draftName, setDraftName] = useState("");
   const [created, setCreated] = useState<Created | null>(null);
-  const [assign, setAssign] = useState<Record<string, string[]>>({}); // itemId -> participantIds
-  const [aiText, setAiText] = useState("");
-  const [deadline, setDeadline] = useState<(typeof DEADLINES)[number]["value"]>("24");
-  const [locked, setLocked] = useState<Locked | null>(null);
   const [drag, setDrag] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -175,102 +140,48 @@ export function NewBill() {
     }
   }
 
-  /* 3 · crear la sala (borrador) y traer los ids reales de los ítems */
+  /* 3 · crear la mesa: queda abierta con UN enlace para todos */
   async function createRoom() {
     setBusy(true);
     try {
       const body = {
         hostName: hostName.trim(),
-        participantNames: others,
         merchant,
         currency,
         printedTotalCents: printed ?? undefined,
         items: lines.map((l) => ({ name: l.name, quantity: l.quantity, lineTotalCents: l.cents })),
         charges,
       };
-      const r = await api<{ code: string; hostUrl: string; participants: Created["participants"] }>("/api/rooms", {
+      const r = await api<{ code: string; hostUrl: string; participants: { isHost: boolean; url: string }[] }>("/api/rooms", {
         method: "POST",
         json: body,
       });
-      const hostToken = new URL(r.hostUrl).searchParams.get("t")!;
-      const room = await api<{ items: { id: string }[] }>(`/api/rooms/${r.code}`, { token: hostToken });
-      setCreated({ ...r, hostToken, itemIds: room.items.map((i) => i.id) });
-      saveRoom({ code: r.code, hostPath: r.hostUrl.replace(/^https?:\/\/[^/]+/, ""), merchant, createdAt: Date.now(), links: r.participants.map((x) => ({ id: x.id, name: x.name, url: x.url })) });
-      setAssign({});
-      setStep("assign");
+      // El anfitrión también come: guarda su token de participante para marcar sus ítems desde este dispositivo.
+      const mine = r.participants.find((x) => x.isHost);
+      if (mine) saveMyToken(r.code, mine.url.split("/").pop()!);
+      const hostPath = r.hostUrl.replace(/^https?:\/\/[^/]+/, "");
+      saveRoom({ code: r.code, hostPath, merchant, createdAt: Date.now() });
+      setCreated({ code: r.code, hostPath });
+      setStep("table");
     } catch (e) {
-      toast({ tone: "error", title: "Couldn't create the room", body: explain(e) });
+      toast({ tone: "error", title: "Couldn't create the table", body: explain(e) });
     } finally {
       setBusy(false);
     }
   }
 
-  /* 4 · asignar */
-  const toggle = (itemId: string, pid: string) =>
-    setAssign((a) => {
-      const cur = a[itemId] ?? [];
-      return { ...a, [itemId]: cur.includes(pid) ? cur.filter((x) => x !== pid) : [...cur, pid] };
-    });
-
-  async function askAi() {
-    if (!created || !aiText.trim()) return;
-    setBusy(true);
+  async function copy(text: string, title: string, body?: string) {
     try {
-      const r = await api<{ proposal: { itemId: string; assignees: { participantId: string }[] }[]; ignored: string[] }>(
-        `/api/rooms/${created.code}/assign`,
-        { method: "POST", token: created.hostToken, json: { text: aiText } },
-      );
-      setAssign((a) => ({
-        ...a,
-        ...Object.fromEntries(r.proposal.filter((p) => p.assignees.length).map((p) => [p.itemId, p.assignees.map((x) => x.participantId)])),
-      }));
-      toast({
-        tone: r.ignored.length ? "info" : "ok",
-        title: r.ignored.length ? "Suggestion applied, with gaps" : "Suggestion applied",
-        body: r.ignored.length ? "Check the items that are still empty." : "Review it and tap to adjust.",
-      });
-    } catch (e) {
-      toast({ tone: "error", title: "Couldn't use that", body: explain(e) });
-    } finally {
-      setBusy(false);
+      await navigator.clipboard.writeText(text);
+      toast({ tone: "ok", title, body });
+    } catch {
+      toast({ tone: "error", title: "Couldn't copy", body: "Your browser blocked the clipboard." });
     }
   }
 
-  async function lock() {
-    if (!created) return;
-    const ok = await confirm({
-      title: "Lock this split?",
-      body: "Everyone gets their link with their exact amount. You won't be able to change the items after this.",
-      confirmLabel: "Lock and share",
-    });
-    if (!ok) return;
-    setBusy(true);
-    try {
-      const r = await api<Locked>(`/api/rooms/${created.code}/lock`, {
-        method: "POST",
-        token: created.hostToken,
-        json: {
-          deadlineHours: Number(deadline),
-          assignments: created.itemIds.map((itemId) => ({
-            itemId,
-            assignees: (assign[itemId] ?? []).map((participantId) => ({ participantId, weight: 1 })),
-          })),
-        },
-      });
-      setLocked(r);
-      setStep("links");
-      toast({ tone: "ok", title: "Room is open", body: "Share the links. Nobody pays until everybody does." });
-    } catch (e) {
-      toast({ tone: "error", title: "Couldn't lock the split", body: explain(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const everyoneAssigned = created ? created.itemIds.every((id) => (assign[id] ?? []).length > 0) : false;
   const stepIndex = STEPS.indexOf(step);
-  const peopleReady = hostName.trim().length > 0 && others.length > 0;
-  const people = useMemo(() => created?.participants ?? [], [created]);
+  const tableUrl = created ? `${window.location.origin}/t/${created.code}` : "";
+  const invite = `Join the table for ${merchant ?? "our bill"}: tap what you had and pay only your part. Nobody pays until everybody does. ${tableUrl}`;
 
   return (
     <div>
@@ -415,209 +326,74 @@ export function NewBill() {
             </p>
           </div>
 
-          <div className="mt-8 flex justify-between">
-            <Button variant="ghost" onClick={() => setStep("photo")}>Back</Button>
-            <Button disabled={lines.length === 0 || lines.some((l) => !l.name.trim() || l.cents === 0) || !matches} onClick={() => setStep("people")}>
-              Continue <ArrowRight aria-hidden className="size-4" />
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {/* 3 · PERSONAS */}
-      {step === "people" && (
-        <section>
-          <Heading kicker="(03) — The table" title="Who's splitting?" sub="Just first names. Everyone gets their own private link — no app, no sign-up." />
-          <label className="block">
-            <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-wide text-muted">You</span>
-            <input value={hostName} onChange={(e) => setHostName(e.target.value)} placeholder="Your name" maxLength={60} className={`${field} w-full`} />
+          <label className="mt-8 block">
+            <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-wide text-muted">Your name</span>
+            <input
+              value={hostName}
+              onChange={(e) => setHostName(e.target.value)}
+              placeholder="So your friends know who's organizing"
+              maxLength={60}
+              className={`${field} w-full`}
+            />
           </label>
 
-          <form
-            className="mt-6"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const n = draftName.trim();
-              if (!n) return;
-              if (others.some((o) => o.toLowerCase() === n.toLowerCase()) || n.toLowerCase() === hostName.trim().toLowerCase()) {
-                toast({ tone: "info", title: `${n} is already at the table` });
-                return;
-              }
-              setOthers((o) => [...o, n]);
-              setDraftName("");
-            }}
-          >
-            <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-wide text-muted">Everyone else</span>
-            <div className="flex gap-2">
-              <input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="Add a name" maxLength={60} className={`${field} min-w-0 flex-1`} />
-              <Button type="submit" aria-label="Add person" className="px-4">
-                <Plus aria-hidden className="size-5" />
-              </Button>
+          <div className="mt-8 flex justify-between">
+            <Button variant="ghost" onClick={() => setStep("photo")}>Back</Button>
+            <Button
+              busy={busy}
+              disabled={lines.length === 0 || lines.some((l) => !l.name.trim() || l.cents === 0) || !matches || !hostName.trim()}
+              onClick={createRoom}
+            >
+              Create the table <ArrowRight aria-hidden className="size-4" />
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* 3 · LA MESA */}
+      {step === "table" && created && (
+        <section>
+          <Heading
+            kicker="(03) — One link"
+            title="Send it to the table."
+            sub="Everyone opens it, enters their name and taps what they had. When you close the table, each person pays only their part."
+          />
+
+          <div className="rounded-3xl bg-ink p-6 text-paper">
+            <p className="font-mono text-[11px] uppercase tracking-wide text-paper/60">Table link</p>
+            <p translate="no" className="mt-2 break-all font-mono text-lg">{tableUrl.replace(/^https?:\/\//, "")}</p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void copy(tableUrl, "Table link copied")}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-paper/25 px-4 py-3 text-[15px] transition-colors hover:bg-paper/10"
+              >
+                <Copy aria-hidden className="size-4" /> Copy link
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(invite)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-paper px-4 py-3 text-[15px] text-ink transition-colors hover:bg-accent-soft"
+              >
+                <Share2 aria-hidden className="size-4" /> WhatsApp
+              </a>
             </div>
-          </form>
-
-          <ul className="mt-5 flex flex-wrap gap-2">
-            {others.map((n) => (
-              <li key={n} className="flex items-center gap-2 rounded-full bg-paper-2 py-1.5 pl-1.5 pr-3 text-[15px]">
-                <Initial name={n} size="size-7" />
-                {n}
-                <button type="button" aria-label={`Remove ${n}`} onClick={() => setOthers((o) => o.filter((x) => x !== n))} className="text-muted hover:text-danger">
-                  <X aria-hidden className="size-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-10 flex justify-between">
-            <Button variant="ghost" onClick={() => setStep("review")}>Back</Button>
-            <Button disabled={!peopleReady} busy={busy} onClick={createRoom}>
-              Continue <ArrowRight aria-hidden className="size-4" />
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {/* 4 · ASIGNACIÓN */}
-      {step === "assign" && created && (
-        <section>
-          <Heading kicker="(04) — Who had what" title="Tap to assign." sub="Shared dish? Tap more than one person and it's split evenly. Tax and tip follow each plate." />
-
-          <div className="rounded-3xl border border-line bg-paper-2 p-4">
-            <label className="block">
-              <span className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-muted">
-                <Sparkles aria-hidden className="size-3.5 text-accent" /> Or just say it
-              </span>
-              <textarea
-                value={aiText}
-                onChange={(e) => setAiText(e.target.value)}
-                rows={2}
-                maxLength={1000}
-                placeholder={`e.g. "${lines[0]?.name || "The first dish"} is ${others[0]}'s, the rest we split evenly"`}
-                className={`${field} w-full resize-none`}
-              />
-            </label>
-            <Button className="mt-3 w-full" busy={busy} disabled={!aiText.trim()} onClick={askAi}>
-              Suggest an assignment
-            </Button>
           </div>
 
-          <ul className="mt-6 space-y-3">
-            {lines.map((l, idx) => {
-              const itemId = created.itemIds[idx];
-              const chosen = assign[itemId] ?? [];
-              return (
-                <li key={itemId} className="rounded-3xl border border-line bg-paper p-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate text-[15px]">{l.name}</span>
-                    <span translate="no" className="font-mono text-sm tabular-nums text-muted">{money(l.cents)}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {people.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        aria-pressed={chosen.includes(p.id)}
-                        aria-label={`${p.name} — ${l.name}`}
-                        onClick={() => toggle(itemId, p.id)}
-                        className="flex flex-col items-center gap-1 rounded-2xl p-1 focus-visible:outline-2 focus-visible:outline-accent"
-                      >
-                        <Initial name={p.name} on={chosen.includes(p.id)} />
-                        <span className="max-w-14 truncate text-[11px] text-muted">{p.name}</span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setAssign((a) => ({ ...a, [itemId]: chosen.length === people.length ? [] : people.map((p) => p.id) }))}
-                      className="ml-auto rounded-full border border-line px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors hover:bg-paper-2"
-                    >
-                      {chosen.length === people.length ? "Clear" : "Everyone"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="mt-6 max-w-xs">
-            <Select label="Time to pay" value={deadline} options={DEADLINES} onChange={setDeadline} />
-            <p className="mt-2 text-xs text-muted">If the table isn&apos;t complete by then, every hold is released and nobody is charged.</p>
-          </div>
-
-          <div className="mt-8 flex justify-end">
-            <Button disabled={!everyoneAssigned} busy={busy} onClick={lock}>
-              {everyoneAssigned ? "Lock the split" : `${created.itemIds.filter((id) => !(assign[id] ?? []).length).length} item(s) left`}
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {/* 5 · ENLACES */}
-      {step === "links" && created && locked && (
-        <section>
-          <Heading kicker="(05) — Send the room" title="Everyone gets a link." sub={`Open until ${new Date(locked.deadlineAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })}. Nobody is charged until the last person confirms.`} />
-          <ul className="space-y-3">
-            {created.participants.map((p) => {
-              const amount = locked.shares.find((s) => s.participantId === p.id)?.totalCents ?? 0;
-              const text = `${p.name}, your share of ${merchant ?? "the bill"} is ${money(amount)}. Nobody pays until everybody does: ${p.url}`;
-              return (
-                <li key={p.id} className="flex items-center gap-3 rounded-3xl border border-line bg-paper-2 p-4">
-                  <Initial name={p.name} on />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px]">
-                      {p.name}
-                      {p.isHost && <span className="ml-2 font-mono text-[11px] uppercase text-muted">you</span>}
-                    </p>
-                    <p translate="no" className="font-mono text-lg tabular-nums">{money(amount)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={`Copy ${p.name}'s link`}
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(p.url);
-                        toast({ tone: "ok", title: "Link copied", body: p.name });
-                      } catch {
-                        toast({ tone: "error", title: "Couldn't copy", body: "Your browser blocked the clipboard." });
-                      }
-                    }}
-                    className="grid size-10 place-items-center rounded-full border border-line transition-colors hover:bg-paper-3"
-                  >
-                    <Copy aria-hidden className="size-4" />
-                  </button>
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(text)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Share ${p.name}'s link on WhatsApp`}
-                    className="grid size-10 place-items-center rounded-full bg-ink text-paper transition-colors hover:bg-accent"
-                  >
-                    <Share2 aria-hidden className="size-4" />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
           <SaveRoom />
           <p className="mt-6 text-sm leading-relaxed text-muted">
-            Your own link is the key to this room — it&apos;s saved on this device, but copy it somewhere safe too.
+            You run the table from the organizer page. It&apos;s saved on this device; copy your organizer link somewhere safe too.
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <Button
               variant="ghost"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(created.hostUrl);
-                  toast({ tone: "ok", title: "Host link copied", body: "Keep it private: it controls the room." });
-                } catch {
-                  toast({ tone: "error", title: "Couldn't copy", body: "Your browser blocked the clipboard." });
-                }
-              }}
+              onClick={() => void copy(`${window.location.origin}${created.hostPath}`, "Organizer link copied", "Keep it private: it controls the table.")}
             >
-              <Copy aria-hidden className="size-4" /> Copy my host link
+              <Copy aria-hidden className="size-4" /> Copy organizer link
             </Button>
-            <Link href={created.hostUrl.replace(/^https?:\/\/[^/]+/, "")} className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-[15px] text-paper transition-colors hover:bg-accent">
-              Follow the room <ArrowRight aria-hidden className="size-4" />
+            <Link href={created.hostPath} className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-[15px] text-paper transition-colors hover:bg-accent">
+              Open the table <ArrowRight aria-hidden className="size-4" />
             </Link>
           </div>
         </section>

@@ -38,6 +38,16 @@ export async function GET(request: Request, ctx: { params: Promise<{ code: strin
       shareCents: isHost || p.id === who.participantId ? p.shareCents : null,
     })),
     myBreakdown: split?.shares.find((s) => s.participantId === who.participantId) ?? null,
-    ...(isHost ? { items: room.bill.items, charges: room.bill.charges, shares: split?.shares ?? null } : {}),
+    // La mesa abierta necesita ver el ticket para marcar lo propio; los montos de los demás siguen privados.
+    items: room.bill.items.map((i) => ({
+      id: i.id,
+      name: i.name,
+      quantity: i.quantity,
+      lineTotalCents: i.lineTotalCents,
+      takenBy: i.assignees.map((a) => a.participantId),
+    })),
+    charges: room.bill.charges,
+    billTotalCents: room.bill.items.reduce((n, i) => n + i.lineTotalCents, 0) + room.bill.charges.reduce((n, c) => n + c.amountCents, 0),
+    ...(isHost ? { shares: split?.shares ?? null } : {}),
   });
 }

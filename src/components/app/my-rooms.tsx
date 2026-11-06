@@ -43,6 +43,22 @@ export function findRoom(code: string): SavedRoom | undefined {
   return parse(read()).find((r) => r.code === code);
 }
 
+/** Token privado de esta persona en la mesa (se guarda al unirse; es lo que la identifica sin cuenta). */
+export function getMyToken(code: string): string | null {
+  try {
+    return localStorage.getItem(`quorum.me.${code.toUpperCase()}`);
+  } catch {
+    return null;
+  }
+}
+export function saveMyToken(code: string, token: string) {
+  try {
+    localStorage.setItem(`quorum.me.${code.toUpperCase()}`, token);
+  } catch {
+    /* sin almacenamiento: tendrá que unirse de nuevo si recarga */
+  }
+}
+
 function parse(raw: string): SavedRoom[] {
   try {
     const v = JSON.parse(raw || "[]");
