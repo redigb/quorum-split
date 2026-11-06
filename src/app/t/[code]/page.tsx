@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { TableRoute } from "./route-client";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export const metadata: Metadata = {
   title: "Join the table — Quorum",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function TablePage({ params }: PageProps<"/t/[code]">) {
   return (
     <AppShell>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-paper-2" />}>
+      <Suspense fallback={<PageSkeleton />}>
         <TableRoute params={params} />
       </Suspense>
     </AppShell>

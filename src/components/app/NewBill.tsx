@@ -197,7 +197,7 @@ export function NewBill() {
 
       {/* 1 · FOTO */}
       {step === "photo" && (
-        <section>
+        <section className="stagger">
           <Heading kicker="(01) — The receipt" title="Snap the bill." sub="We read every line and check it against the printed total, to the cent." />
           <input
             ref={fileRef}
@@ -251,7 +251,7 @@ export function NewBill() {
 
       {/* 2 · REVISIÓN */}
       {step === "review" && (
-        <section>
+        <section className="stagger">
           <Heading kicker="(02) — Check it" title="Does this look right?" sub={merchant ? `From ${merchant}. Tap any line to fix it.` : "Tap any line to fix it."} />
           <div className="mb-5 max-w-44">
             <Select
@@ -353,7 +353,7 @@ export function NewBill() {
 
       {/* 3 · LA MESA */}
       {step === "table" && created && (
-        <section>
+        <section className="stagger">
           <Heading
             kicker="(03) — One link"
             title="Send it to the table."

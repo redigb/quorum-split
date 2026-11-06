@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { DrawOverlay } from "@/components/app/DrawOverlay";
 import { useToast } from "@/components/ui/Toaster";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 interface RoomView {
   role: "host" | "participant";
@@ -247,11 +248,11 @@ export function Participant({ code, token }: { code: string; token: string }) {
     };
   }, [live, refresh]);
 
-  if (load.kind === "loading") return <div className="h-64 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
+  if (load.kind === "loading") return <PageSkeleton />;
 
   if (load.kind === "invalid" || load.kind === "error") {
     return (
-      <section>
+      <section className="stagger">
         <h1 className="display text-5xl">{load.kind === "invalid" ? "This link doesn't work." : "Couldn't load."}</h1>
         <p className="mt-4 text-[15px] leading-relaxed text-muted">
           {load.kind === "invalid"
@@ -266,7 +267,7 @@ export function Participant({ code, token }: { code: string; token: string }) {
   const me = room.participants.find((p) => p.id === room.me);
   if (!me) {
     return (
-      <section>
+      <section className="stagger">
         <h1 className="display text-5xl">This is the organizer&apos;s link.</h1>
         <p className="mt-4 text-[15px] text-muted">Open your own participant link to pay your share.</p>
       </section>
@@ -283,7 +284,7 @@ export function Participant({ code, token }: { code: string; token: string }) {
   const first = me.name.split(" ")[0];
 
   return (
-    <section>
+    <section className="stagger">
       {room.mode === "lucky" && room.grandTotalCents != null && <DrawOverlay code={code} room={room} totalCents={room.grandTotalCents} />}
       <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
         {room.merchant ?? "Shared bill"}

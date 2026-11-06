@@ -50,7 +50,7 @@ export function Demo() {
   const busy = mode !== null;
 
   return (
-    <section>
+    <section className="stagger">
       <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Demo</p>
       <h1 className="display mt-2 text-5xl sm:text-6xl">{busy ? "Setting the table…" : "Pick your demo."}</h1>
       <p className="mt-4 text-[15px] leading-relaxed text-muted">

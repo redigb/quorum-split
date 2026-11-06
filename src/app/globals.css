@@ -205,3 +205,34 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .toast-in, .sheet-in, .pop-in, .fade-in { animation: none; }
 }
+
+/* ---------- App: entrada suave y esqueletos (nada aparece de golpe) ---------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Los hijos directos de una pantalla entran en cascada, de arriba abajo. */
+.stagger > * { animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(7) { animation-delay: 300ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 350ms; }
+
+/* Esqueleto con brillo suave: ocupa el lugar del contenido para que la pantalla no salte al cargar. */
+.skeleton {
+  background: linear-gradient(100deg, var(--paper-2) 30%, var(--paper-3) 50%, var(--paper-2) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > *, .skeleton { animation: none; }
+}

@@ -9,6 +9,7 @@ import { EmailLogin } from "@/components/app/EmailLogin";
 import { STATUS_LABEL } from "@/components/app/status";
 import { useToast } from "@/components/ui/Toaster";
 import { supabaseBrowser, useSession } from "@/lib/auth-client";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 interface RoomRow {
   code: string;
@@ -58,11 +59,11 @@ export function Rooms() {
     };
   }, [token, toast]);
 
-  if (session === undefined) return <div className="h-48 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
+  if (session === undefined) return <PageSkeleton />;
 
   if (!session) {
     return (
-      <section>
+      <section className="stagger">
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Your rooms</p>
         <h1 className="display mt-2 text-5xl sm:text-6xl">Pick up where you left off.</h1>
         <p className="mb-8 mt-4 text-[15px] leading-relaxed text-muted">
@@ -76,7 +77,7 @@ export function Rooms() {
   const money = (c: number, cur: Currency) => formatMoney(c, cur, "en-US");
 
   return (
-    <section>
+    <section className="stagger">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Your rooms</p>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { HostRoute } from "./route-client";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 // El enlace del anfitrión es su llave: que no se indexe ni viaje como referrer.
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export default function HostPage({ params }: PageProps<"/r/[code]/host">) {
   return (
     <AppShell back={{ href: "/rooms", label: "Your rooms" }}>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-paper-2" />}>
+      <Suspense fallback={<PageSkeleton />}>
         <HostRoute params={params} />
       </Suspense>
     </AppShell>

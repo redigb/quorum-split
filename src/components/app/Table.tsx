@@ -8,6 +8,7 @@ import { findRoom, getMyToken, saveMyToken } from "@/components/app/my-rooms";
 import { Participant } from "@/components/app/Participant";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toaster";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 interface Preview {
   status: string;
@@ -160,14 +161,14 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
     void refresh();
   }
 
-  if (token === undefined) return <div className="h-64 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
+  if (token === undefined) return <PageSkeleton />;
 
   /* ---- no se ha unido (o su token ya no sirve) ---- */
   if (token === null || view === "invalid") {
-    if (preview === null) return <div className="h-64 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
+    if (preview === null) return <PageSkeleton />;
     if (preview === "missing") {
       return (
-        <section>
+        <section className="stagger">
           <h1 className="display text-5xl">This table doesn&apos;t exist.</h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted">Check the link, or ask whoever organized the bill to send it again.</p>
         </section>
@@ -175,7 +176,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
     }
     if (!preview.joinable) {
       return (
-        <section>
+        <section className="stagger">
           <h1 className="display text-5xl">This table is closed.</h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted">
             {preview.people >= 20
@@ -186,7 +187,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
       );
     }
     return (
-      <section>
+      <section className="stagger">
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">{preview.merchant ?? "Shared bill"}</p>
         <h1 className="display mt-2 text-5xl sm:text-6xl">Join the table.</h1>
         <p className="mb-8 mt-4 text-[15px] leading-relaxed text-muted">
@@ -213,7 +214,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
     );
   }
 
-  if (view === null) return <div className="h-64 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
+  if (view === null) return <PageSkeleton />;
 
   /* ---- mesa cerrada: a pagar ---- */
   if (view.status !== "DRAFT") return <Participant code={code} token={token} />;
@@ -224,7 +225,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
     const inCount = view.participants.filter((p) => p.luckyOk).length;
     const money = (c: number) => formatMoney(c, view.currency, "en-US");
     return (
-      <section>
+      <section className="stagger">
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">{view.merchant ?? "Shared bill"}</p>
         <h1 className="display mt-2 text-5xl sm:text-6xl">Feeling lucky?</h1>
         <p className="mt-4 text-[15px] leading-relaxed text-muted">
@@ -264,7 +265,7 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
   const hostPath = findRoom(code)?.hostPath;
 
   return (
-    <section>
+    <section className="stagger">
       <p className="font-mono text-[11px] uppercase tracking-wide text-muted">{view.merchant ?? "Shared bill"}</p>
       <h1 className="display mt-2 text-5xl sm:text-6xl">Hi {myName.split(" ")[0]}.</h1>
       <p className="mt-4 text-[15px] leading-relaxed text-muted">

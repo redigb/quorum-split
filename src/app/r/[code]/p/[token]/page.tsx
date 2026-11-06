@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { ParticipantRoute } from "./route-client";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 // El enlace contiene un token privado: que no se indexe ni se mande como referrer.
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export default function ParticipantPage({ params }: PageProps<"/r/[code]/p/[token]">) {
   return (
     <AppShell>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-paper-2" />}>
+      <Suspense fallback={<PageSkeleton />}>
         <ParticipantRoute params={params} />
       </Suspense>
     </AppShell>
