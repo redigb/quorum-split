@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { addSavedLink, findRoom } from "@/components/app/my-rooms";
 import { DrawOverlay } from "@/components/app/DrawOverlay";
+import { VoiceButton } from "@/components/app/VoiceButton";
 import { LedgerTable } from "@/components/app/LedgerTable";
 import { LIVE, Ring, STATUS, timeLeft } from "@/components/app/Participant";
 import { Button } from "@/components/ui/Button";
@@ -472,6 +473,14 @@ export function Host({ code }: { code: string }) {
           ) : (
             <>
               <h2 className="mb-3 font-mono text-[11px] uppercase tracking-wide text-muted">Who had what</h2>
+              <div className="mb-3">
+                <VoiceButton
+                  code={code}
+                  getHeaders={() => hostHeaders(token)}
+                  onDone={() => void refresh()}
+                  label="Say it: “the pasta is Carlos’s…”"
+                />
+              </div>
               <ul className="divide-y divide-line rounded-3xl border border-line bg-paper-2 px-4">
                 {room.items.map((i) => (
                   <li key={i.id} className="py-3 text-[15px]">

@@ -8,10 +8,10 @@ export async function GET(request: Request) {
 
   const { data: rooms, error } = await db()
     .from("rooms")
-    .select("code, status, merchant, currency, deadline_at, created_at, id")
+    .select("code, status, merchant, currency, deadline_at, created_at, id, archived_at")
     .eq("owner_id", uid)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(200);
   if (error) return Response.json({ error: "query_failed" }, { status: 500 });
   if (!rooms.length) return Response.json({ rooms: [] });
 
@@ -33,6 +33,7 @@ export async function GET(request: Request) {
         currency: r.currency,
         deadlineAt: r.deadline_at,
         createdAt: r.created_at,
+        archivedAt: r.archived_at ?? null,
         totalCents: ps.reduce((a, p) => a + Number(p.share_cents), 0),
         collectedCents: sumOf("CAPTURED"), // ya cobrado
         heldCents: sumOf("AUTHORIZED"), // retenido, aún no cobrado

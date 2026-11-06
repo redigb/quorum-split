@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { findRoom, getMyToken, saveMyToken } from "@/components/app/my-rooms";
 import { Participant } from "@/components/app/Participant";
+import { VoiceButton } from "@/components/app/VoiceButton";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toaster";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -272,7 +273,11 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
         Tap everything you had. Shared a dish? Everyone who taps it splits it evenly. What nobody taps is split among the whole table.
       </p>
 
-      <ul className="mt-8 space-y-2">
+      <div className="mt-6">
+        <VoiceButton code={code} getHeaders={async () => ({ authorization: `Bearer ${token}` })} onDone={() => void refresh()} />
+      </div>
+
+      <ul className="mt-6 space-y-2">
         {view.items.map((i) => {
           const mine = !!me && i.takenBy.includes(me);
           const others = i.takenBy.filter((x) => x !== me);
