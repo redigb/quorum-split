@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Split a bill — Quorum" };
 
 export default function NewPage() {
   return (
-    <AppShell>
+    <AppShell back={{ href: "/", label: "Home" }}>
       <NewBill />
     </AppShell>
   );

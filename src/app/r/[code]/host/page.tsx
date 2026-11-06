@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function HostPage({ params }: PageProps<"/r/[code]/host">) {
   return (
-    <AppShell>
+    <AppShell back={{ href: "/rooms", label: "Your rooms" }}>
       <Suspense fallback={<div className="h-64 animate-pulse rounded-3xl bg-paper-2" />}>
         <HostRoute params={params} />
       </Suspense>

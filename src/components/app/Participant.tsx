@@ -1,7 +1,7 @@
 "use client";
 
 import { loadScript, type PayPalNamespace } from "@paypal/paypal-js";
-import { Check, ChevronDown, Clock, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, Clock, Copy, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
@@ -11,6 +11,9 @@ interface RoomView {
   role: "host" | "participant";
   me: string | null;
   status: string;
+  demo?: boolean;
+  mode?: "fair" | "lucky";
+  loserId?: string | null;
   merchant: string | null;
   currency: Currency;
   deadlineAt: string | null;
@@ -148,6 +151,49 @@ function PayPalButton({
   );
 }
 
+/** Aviso del modo demo: qué es de mentira y con qué cuenta se paga. Las credenciales Sandbox son opcionales (variables públicas). */
+function DemoNote() {
+  const toast = useToast();
+  const email = process.env.NEXT_PUBLIC_DEMO_BUYER_EMAIL;
+  const password = process.env.NEXT_PUBLIC_DEMO_BUYER_PASSWORD;
+  const copy = async (text: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ tone: "ok", title: `${what} copied` });
+    } catch {
+      toast({ tone: "error", title: "Couldn't copy" });
+    }
+  };
+  return (
+    <div className="mt-6 rounded-3xl border border-accent/30 bg-accent-soft p-5 text-[15px] leading-relaxed">
+      <p className="font-semibold">Demo table</p>
+      <p className="mt-1 text-muted">
+        Maya, Leo and Sofia are simulated and confirm on their own in a few seconds. You&apos;re the last one: pay with a{" "}
+        <strong className="font-semibold text-ink">PayPal Sandbox</strong> buyer account. Nothing real is charged.
+      </p>
+      {email && password && (
+        <div className="mt-4 space-y-2 text-sm">
+          {[
+            ["Email", email],
+            ["Password", password],
+          ].map(([k, v]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => void copy(v, k)}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-paper px-4 py-2.5 text-left transition-colors hover:bg-paper-2"
+            >
+              <span className="font-mono text-[11px] uppercase text-muted">{k}</span>
+              <span translate="no" className="min-w-0 flex-1 truncate text-right font-mono">{v}</span>
+              <Copy aria-hidden className="size-4 shrink-0 text-muted" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const STATUS: Record<string, { label: string; dot: string }> = {
   UNPAID: { label: "Waiting", dot: "bg-faint" },
   ORDER_CREATED: { label: "Paying…", dot: "bg-hold" },
@@ -244,6 +290,8 @@ export function Participant({ code, token }: { code: string; token: string }) {
         <p className="mt-6 text-[15px] leading-relaxed text-muted">The organizer is still setting up the split. This page updates when it&apos;s ready — come back in a moment.</p>
       )}
 
+      {room.demo && room.status !== "DRAFT" && <DemoNote />}
+
       {room.status !== "DRAFT" && (
         <>
           {/* monto: protagonista */}
@@ -308,7 +356,15 @@ export function Participant({ code, token }: { code: string; token: string }) {
             {room.status === "EXPIRED" && <p className="text-[15px] text-muted">The time ran out before everyone confirmed. Every hold was released — nobody was charged.</p>}
             {room.status === "CANCELLED" && <p className="text-[15px] text-muted">The organizer cancelled this bill. Nothing was charged.</p>}
             {room.status === "FAILED" && <p role="alert" className="text-[15px] text-danger">A payment couldn&apos;t be processed. The organizer has been notified.</p>}
-            {mine === "EXEMPT" && <p className="text-[15px] text-muted">You don&apos;t owe anything on this one.</p>}
+            {mine === "EXEMPT" && room.mode === "lucky" && (
+              <p className="text-[15px]">
+                🍀 You were spared. <span translate="no" className="font-semibold">{room.participants.find((p) => p.id === room.loserId)?.name ?? "Someone"}</span> pays it all.
+              </p>
+            )}
+            {mine === "EXEMPT" && room.mode !== "lucky" && <p className="text-[15px] text-muted">You don&apos;t owe anything on this one.</p>}
+            {room.mode === "lucky" && room.loserId === room.me && room.status === "OPEN" && mine !== "AUTHORIZED" && (
+              <p className="mb-4 text-[15px]">The card landed on you. You pay it all — it&apos;s a game, and you agreed to play.</p>
+            )}
           </div>
 
           {/* el grupo */}

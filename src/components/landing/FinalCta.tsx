@@ -107,6 +107,11 @@ export function FinalCta() {
               Split your first bill
               <ArrowUpRight aria-hidden className="size-5 transition-transform duration-300 group-hover:rotate-45" />
             </Link>
+            <p className="mt-5 text-sm">
+              <Link href="/demo" className="underline underline-offset-4 transition-colors hover:text-accent">
+                Or try the demo — no sign-up, 1 minute
+              </Link>
+            </p>
             <p className="mt-4 text-sm text-muted">Free · no account for your friends · PayPal Sandbox demo</p>
           </div>
         </div>

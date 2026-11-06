@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, Clock, Copy, Share2 } from "lucide-react";
+import { Check, Clock, Copy, Dices, Pencil, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
+import { LedgerTable } from "@/components/app/LedgerTable";
 import { LIVE, Ring, STATUS, timeLeft } from "@/components/app/Participant";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -15,12 +16,14 @@ import { hostHeaders } from "@/lib/auth-client";
 interface HostView {
   role: "host" | "participant";
   status: string;
+  mode: "fair" | "lucky";
+  loserId: string | null;
   merchant: string | null;
   currency: Currency;
   deadlineAt: string | null;
   grandTotalCents: number | null;
   progress: { done: number; total: number } | null;
-  participants: { id: string; name: string; isHost: boolean; paymentStatus: string; shareCents: number | null }[];
+  participants: { id: string; name: string; isHost: boolean; luckyOk: boolean; paymentStatus: string; shareCents: number | null }[];
   items: { id: string; name: string; lineTotalCents: number; takenBy: string[] }[];
 }
 type Load = { kind: "loading" } | { kind: "invalid" } | { kind: "error" } | { kind: "ok"; room: HostView };
@@ -50,6 +53,7 @@ export function Host({ code }: { code: string }) {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [deadline, setDeadline] = useState<(typeof DEADLINES)[number]["value"]>("24");
 
   const refresh = useCallback(async () => {
@@ -103,6 +107,8 @@ export function Host({ code }: { code: string }) {
   const me = room.participants.find((p) => p.isHost);
   // Quien no debe nada (parte en cero) no estorba en la lista una vez cerrada la mesa.
   const shown = draft ? room.participants : room.participants.filter((p) => p.paymentStatus !== "EXEMPT");
+  const lucky = room.mode === "lucky";
+  const allIn = room.participants.every((p) => p.luckyOk);
   const untaken = room.items.filter((i) => i.takenBy.length === 0).length;
   const nameOf = (id: string) => room.participants.find((p) => p.id === id)?.name ?? "";
 
@@ -137,14 +143,69 @@ export function Host({ code }: { code: string }) {
     }
   }
 
+  const PEOPLE_ERRORS: Record<string, string> = {
+    name_taken: "Someone at the table already has that name.",
+    table_closed: "The table is already closed.",
+  };
+
+  async function renamePerson() {
+    if (!editing || !editing.name.trim()) return;
+    try {
+      const res = await fetch(`/api/rooms/${code}/participants/${editing.id}`, {
+        method: "PATCH",
+        headers: { ...(await hostHeaders(token)), "content-type": "application/json" },
+        body: JSON.stringify({ name: editing.name.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return toast({ tone: "error", title: "Couldn't rename", body: PEOPLE_ERRORS[data.error] ?? "Please try again." });
+      setEditing(null);
+      await refresh();
+    } catch {
+      toast({ tone: "error", title: "Couldn't rename", body: "Check your connection and try again." });
+    }
+  }
+
+  async function removePerson(id: string, name: string) {
+    const ok = await confirm({
+      title: `Remove ${name}?`,
+      body: "They leave the table and the items they tapped go back to unclaimed. They can join again with the link.",
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/rooms/${code}/participants/${id}`, { method: "DELETE", headers: await hostHeaders(token) });
+      if (!res.ok) throw new Error();
+      toast({ tone: "ok", title: `${name} removed` });
+      await refresh();
+    } catch {
+      toast({ tone: "error", title: "Couldn't remove", body: "The table may have just closed." });
+    }
+  }
+
+  async function setMode(mode: "fair" | "lucky") {
+    try {
+      const res = await fetch(`/api/rooms/${code}/mode`, {
+        method: "POST",
+        headers: { ...(await hostHeaders(token)), "content-type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      if (!res.ok) throw new Error();
+      await refresh();
+    } catch {
+      toast({ tone: "error", title: "Couldn't change the mode", body: "The table may have just closed." });
+    }
+  }
+
   async function closeTable() {
     const ok = await confirm({
-      title: "Close the table?",
-      body:
-        untaken > 0
+      title: lucky ? "Draw the card?" : "Close the table?",
+      body: lucky
+        ? "One random person pays the whole bill. Everyone said yes, and the draw can't be redone."
+        : untaken > 0
           ? `${untaken} item${untaken > 1 ? "s" : ""} nobody tapped will be split among everyone. Nobody new can join after this.`
           : "Everyone gets their exact amount and a payment button. Nobody new can join after this.",
-      confirmLabel: "Close the table",
+      confirmLabel: lucky ? "Draw" : "Close the table",
     });
     if (!ok) return;
     setBusy(true);
@@ -163,7 +224,7 @@ export function Host({ code }: { code: string }) {
         });
         return;
       }
-      toast({ tone: "ok", title: "Table closed", body: "Everyone can pay now. Nobody is charged until the last one confirms." });
+      toast({ tone: "ok", title: lucky ? "The card is drawn" : "Table closed", body: lucky ? "Check who pays it all." : "Everyone can pay now. Nobody is charged until the last one confirms." });
       await refresh();
     } catch {
       toast({ tone: "error", title: "Couldn't close the table", body: "Check your connection and try again." });
@@ -215,7 +276,7 @@ export function Host({ code }: { code: string }) {
 
       {draft && me && (
         <Link href={`/t/${code}`} className="mt-3 inline-block text-sm underline underline-offset-4 hover:text-accent">
-          Tap your own items
+          {room.mode === "lucky" ? "Say you're in" : "Tap your own items"}
         </Link>
       )}
 
@@ -247,15 +308,61 @@ export function Host({ code }: { code: string }) {
           return (
             <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3">
               <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${s.dot}`} />
+              {editing?.id === p.id ? (
+                <form
+                  className="flex min-w-0 flex-1 items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void renamePerson();
+                  }}
+                >
+                  <input
+                    autoFocus
+                    aria-label={`New name for ${p.name}`}
+                    value={editing.name}
+                    maxLength={60}
+                    onChange={(e) => setEditing({ id: p.id, name: e.target.value })}
+                    onKeyDown={(e) => e.key === "Escape" && setEditing(null)}
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-1.5 text-[15px] outline-none focus:border-accent"
+                  />
+                  <button type="submit" aria-label="Save name" className="grid size-8 place-items-center rounded-full bg-ink text-paper hover:bg-accent">
+                    <Check aria-hidden className="size-4" />
+                  </button>
+                  <button type="button" aria-label="Cancel" onClick={() => setEditing(null)} className="grid size-8 place-items-center rounded-full border border-line hover:bg-paper-2">
+                    <X aria-hidden className="size-4" />
+                  </button>
+                </form>
+              ) : (
               <span className="min-w-0 flex-1 truncate text-[15px]">
                 {p.name}
                 {p.isHost && <span className="ml-2 font-mono text-[11px] uppercase text-muted">you</span>}
               </span>
-              {draft ? (
-                <span className="font-mono text-[11px] uppercase text-muted">
-                  {room.items.filter((i) => i.takenBy.includes(p.id)).length} items
-                </span>
-              ) : (
+              )}
+              {draft && editing?.id !== p.id ? (
+                <>
+                  <span className="font-mono text-[11px] uppercase text-muted">
+                    {lucky ? (p.luckyOk ? "in" : "thinking…") : `${room.items.filter((i) => i.takenBy.includes(p.id)).length} items`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Rename ${p.name}`}
+                    onClick={() => setEditing({ id: p.id, name: p.name })}
+                    className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-paper-3 hover:text-ink"
+                  >
+                    <Pencil aria-hidden className="size-4" />
+                  </button>
+                  {!p.isHost && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${p.name}`}
+                      onClick={() => void removePerson(p.id, p.name)}
+                      className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-paper-3 hover:text-danger"
+                    >
+                      <X aria-hidden className="size-4" />
+                    </button>
+                  )}
+                </>
+              ) : draft ? null : (
                 <>
                   <span translate="no" className="font-mono text-sm tabular-nums">{p.shareCents === null ? "" : money(p.shareCents)}</span>
                   <span className="w-24 text-right font-mono text-[11px] uppercase text-muted">{s.label}</span>
@@ -268,26 +375,61 @@ export function Host({ code }: { code: string }) {
 
       {draft && (
         <div className="mt-8">
-          <h2 className="mb-3 font-mono text-[11px] uppercase tracking-wide text-muted">Who had what</h2>
-          <ul className="divide-y divide-line rounded-3xl border border-line bg-paper-2 px-4">
-            {room.items.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-3 py-3 text-[15px]">
-                <span className="min-w-0 truncate">{i.name}</span>
-                <span translate="no" className="shrink-0 font-mono text-[11px] uppercase text-muted">
-                  {i.takenBy.length ? i.takenBy.map(nameOf).join(", ") : "nobody yet"}
-                </span>
-              </li>
+          <div role="radiogroup" aria-label="How to split" className="mb-6 flex gap-1 rounded-full bg-paper-2 p-1">
+            {([
+              ["fair", "Split fair"],
+              ["lucky", "Feeling lucky"],
+            ] as const).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={room.mode === m}
+                onClick={() => void setMode(m)}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[15px] transition-colors ${
+                  room.mode === m ? "bg-ink text-paper" : "text-muted hover:text-ink"
+                }`}
+              >
+                {m === "lucky" && <Dices aria-hidden className="size-4" />} {label}
+              </button>
             ))}
-          </ul>
-          {untaken > 0 && (
-            <p className="mt-3 text-sm text-muted">{untaken} item{untaken > 1 ? "s" : ""} nobody tapped will be split evenly among the whole table.</p>
+          </div>
+
+          {lucky ? (
+            <p className="rounded-2xl bg-paper-2 p-4 text-[15px] leading-relaxed text-muted">
+              <strong className="font-semibold text-ink">A game between friends.</strong> If every person at the table says yes, a card is drawn and one of you pays the whole bill. Nobody is drawn unless everybody agrees.{" "}
+              <span translate="no" className="text-ink">{room.participants.filter((p) => p.luckyOk).length}/{room.participants.length}</span> are in.
+            </p>
+          ) : (
+            <>
+              <h2 className="mb-3 font-mono text-[11px] uppercase tracking-wide text-muted">Who had what</h2>
+              <ul className="divide-y divide-line rounded-3xl border border-line bg-paper-2 px-4">
+                {room.items.map((i) => (
+                  <li key={i.id} className="flex items-center justify-between gap-3 py-3 text-[15px]">
+                    <span className="min-w-0 truncate">{i.name}</span>
+                    <span translate="no" className="shrink-0 font-mono text-[11px] uppercase text-muted">
+                      {i.takenBy.length ? i.takenBy.map(nameOf).join(", ") : "nobody yet"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {untaken > 0 && (
+                <p className="mt-3 text-sm text-muted">{untaken} item{untaken > 1 ? "s" : ""} nobody tapped will be split evenly among the whole table.</p>
+              )}
+            </>
           )}
           <div className="mt-6 max-w-xs">
             <Select label="Time to pay" value={deadline} options={DEADLINES} onChange={setDeadline} />
-            <p className="mt-2 text-xs text-muted">If the table isn&apos;t complete by then, every hold is released and nobody is charged.</p>
+            <p className="mt-2 text-xs text-muted">If it isn&apos;t paid by then, every hold is released and nobody is charged.</p>
           </div>
-          <Button className="mt-6 w-full" busy={busy} disabled={room.participants.length < 2} onClick={closeTable}>
-            {room.participants.length < 2 ? "Waiting for someone to join" : "Close the table and collect"}
+          <Button className="mt-6 w-full" busy={busy} disabled={room.participants.length < 2 || (lucky && !allIn)} onClick={closeTable}>
+            {room.participants.length < 2
+              ? "Waiting for someone to join"
+              : lucky
+                ? allIn
+                  ? "Draw the card"
+                  : "Waiting for everyone to say yes"
+                : "Close the table and collect"}
           </Button>
         </div>
       )}
@@ -321,6 +463,12 @@ export function Host({ code }: { code: string }) {
           <Check aria-hidden className="size-5 text-ok" /> Collected from everyone.
         </p>
       )}
+
+      <LedgerTable
+        code={code}
+        token={token}
+        refreshKey={`${room.status}|${room.participants.map((p) => `${p.id}:${p.paymentStatus}:${p.name}`).join(",")}`}
+      />
 
       {["DRAFT", "OPEN", "FUNDED"].includes(room.status) && (
         <div className="mt-12 border-t border-line pt-6">

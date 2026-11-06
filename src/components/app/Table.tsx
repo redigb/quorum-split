@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Users } from "lucide-react";
+import { Check, Dices, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
@@ -19,11 +19,12 @@ interface Preview {
 interface TableView {
   me: string | null;
   status: string;
+  mode: "fair" | "lucky";
   merchant: string | null;
   currency: Currency;
   billTotalCents: number;
   items: { id: string; name: string; quantity: number; lineTotalCents: number; takenBy: string[] }[];
-  participants: { id: string; name: string; isHost: boolean }[];
+  participants: { id: string; name: string; isHost: boolean; luckyOk: boolean }[];
 }
 
 const field =
@@ -114,6 +115,23 @@ export function Table({ code }: { code: string }) {
     }
   }
 
+  async function setIn(ok: boolean) {
+    if (!token || view === null || view === "invalid") return;
+    const me = view.me;
+    setView({ ...view, participants: view.participants.map((p) => (p.id === me ? { ...p, luckyOk: ok } : p)) });
+    try {
+      const res = await fetch(`/api/rooms/${code}/lucky`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ ok }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      toast({ tone: "error", title: "Couldn't save that", body: "The mode may have just changed." });
+    }
+    void refresh();
+  }
+
   async function take(itemId: string, taking: boolean) {
     if (!token || view === null || view === "invalid" || !view.me) return;
     const me = view.me;
@@ -194,6 +212,38 @@ export function Table({ code }: { code: string }) {
 
   /* ---- mesa cerrada: a pagar ---- */
   if (view.status !== "DRAFT") return <Participant code={code} token={token} />;
+
+  /* ---- mesa abierta en modo "Feeling lucky": aceptar jugar ---- */
+  if (view.mode === "lucky") {
+    const meP = view.participants.find((p) => p.id === view.me);
+    const inCount = view.participants.filter((p) => p.luckyOk).length;
+    const money = (c: number) => formatMoney(c, view.currency, "en-US");
+    return (
+      <section>
+        <p className="font-mono text-[11px] uppercase tracking-wide text-muted">{view.merchant ?? "Shared bill"}</p>
+        <h1 className="display mt-2 text-5xl sm:text-6xl">Feeling lucky?</h1>
+        <p className="mt-4 text-[15px] leading-relaxed text-muted">
+          A game between friends: if <strong className="font-semibold text-ink">everyone</strong> says yes, a card is drawn and one person pays the whole{" "}
+          <span translate="no">{money(view.billTotalCents)}</span>. If anyone says no, nobody is drawn and nobody is charged.
+        </p>
+        <Button className="mt-8 w-full" variant={meP?.luckyOk ? "ghost" : undefined} onClick={() => void setIn(!meP?.luckyOk)}>
+          <Dices aria-hidden className="size-4" /> {meP?.luckyOk ? "I'm in — tap to back out" : "I'm in"}
+        </Button>
+        <ul className="mt-8 space-y-2">
+          {view.participants.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 text-[15px]">
+              <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${p.luckyOk ? "bg-ok" : "bg-faint"}`} />
+              <span translate="no" className="min-w-0 flex-1 truncate">{p.id === view.me ? "You" : p.name}</span>
+              <span className="font-mono text-[11px] uppercase text-muted">{p.luckyOk ? "In" : "Thinking…"}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-muted">
+          <span translate="no">{inCount}/{view.participants.length}</span> in. The organizer draws when everybody is.
+        </p>
+      </section>
+    );
+  }
 
   /* ---- mesa abierta: marcar lo que consumí ---- */
   const money = (c: number) => formatMoney(c, view.currency, "en-US");

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { ConfirmProvider } from "@/components/ui/Confirm";
 import { Toaster } from "@/components/ui/Toaster";
 
 /** Marco común de las pantallas de la app: mismos tokens que la landing, sin controles nativos. */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, back }: { children: ReactNode; back?: { href: string; label: string } }) {
   return (
     <Toaster>
       <ConfirmProvider>
@@ -21,7 +22,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Sandbox</span>
             </nav>
           </header>
-          <main className="mx-auto max-w-xl px-5 pb-24 pt-8">{children}</main>
+          <main className="mx-auto max-w-xl px-5 pb-24 pt-6">
+            {back && (
+              <Link
+                href={back.href}
+                className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-2 text-sm transition-colors hover:bg-paper-2"
+              >
+                <ArrowLeft aria-hidden className="size-4" /> {back.label}
+              </Link>
+            )}
+            {children}
+          </main>
         </div>
       </ConfirmProvider>
     </Toaster>

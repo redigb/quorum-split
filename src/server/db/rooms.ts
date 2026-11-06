@@ -131,8 +131,11 @@ export interface LoadedRoom {
   sharesVersion: number;
   hostTokenHash: string;
   ownerId: string | null;
+  mode: "fair" | "lucky";
+  drawProof: string | null;
+  loserId: string | null;
   bill: Bill;
-  participants: (Participant & { tokenHash: string; paymentStatus: string; shareCents: number })[];
+  participants: (Participant & { tokenHash: string; paymentStatus: string; shareCents: number; simConfirmAt: string | null; luckyOk: boolean })[];
 }
 
 export async function loadRoom(code: string): Promise<LoadedRoom | null> {
@@ -160,6 +163,9 @@ export async function loadRoom(code: string): Promise<LoadedRoom | null> {
     sharesVersion: room.shares_version,
     hostTokenHash: room.host_token_hash,
     ownerId: room.owner_id ?? null,
+    mode: room.mode === "lucky" ? "lucky" : "fair",
+    drawProof: room.draw_proof ?? null,
+    loserId: room.loser_id ?? null,
     bill: {
       currency: room.currency as Currency,
       printedTotalCents: room.printed_total_cents ?? undefined,
@@ -186,6 +192,8 @@ export async function loadRoom(code: string): Promise<LoadedRoom | null> {
       tokenHash: p.access_token_hash,
       paymentStatus: p.payment_status,
       shareCents: Number(p.share_cents),
+      simConfirmAt: p.sim_confirm_at ?? null,
+      luckyOk: p.lucky_ok ?? false,
     })),
   };
 }

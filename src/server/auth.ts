@@ -34,6 +34,8 @@ export async function guard(request: Request, code: string, role: "host" | "any"
     }
     room = await loadRoom(code);
   }
+  // Modo demo: los amigos simulados "confirman" cuando llega su hora (sin cron, al consultar la sala).
+  if (room && room.status === "OPEN") room = await settleSimulated(room);
   let who = room ? identify(room, bearer(request)) : null;
   // Sin token de sala: la dueña de la sala (cuenta) también es anfitriona, desde cualquier dispositivo.
   if (room && !who && room.ownerId) {
@@ -45,4 +47,23 @@ export async function guard(request: Request, code: string, role: "host" | "any"
     return { ok: false, response: Response.json({ error: "forbidden" }, { status: 403 }) };
   }
   return { ok: true, room, who };
+}
+
+/** Autoriza a los participantes simulados cuyo momento ya llegó. Recarga entre uno y otro para no usar estados viejos. */
+async function settleSimulated(room: LoadedRoom): Promise<LoadedRoom> {
+  const now = Date.now();
+  const due = room.participants.filter(
+    (p) => p.simConfirmAt && new Date(p.simConfirmAt).getTime() <= now && ["UNPAID", "ORDER_CREATED", "VOIDED"].includes(p.paymentStatus),
+  );
+  let current: LoadedRoom | null = room;
+  for (const p of due) {
+    if (!current || current.status !== "OPEN") break;
+    try {
+      await applyEvent(current, { type: "AUTHORIZED", participantId: p.id }, "demo");
+    } catch {
+      /* otra consulta ya lo aplicó: no pasa nada */
+    }
+    current = await loadRoom(room.code);
+  }
+  return current ?? room;
 }

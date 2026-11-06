@@ -1,7 +1,7 @@
 "use client";
 
 import { Pic } from "./Pic";
-import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useRef } from "react";
 import { BILL, money } from "./demo-bill";
 import { EASE, MOTION_OK, SplitText, gsap, useGSAP } from "./gsap";
@@ -233,13 +233,13 @@ export function Hero() {
             Split a bill
             <ArrowUpRight aria-hidden className="size-5 transition-transform duration-300 group-hover:rotate-45" />
           </Link>
-          <a
-            href="#how"
+          <Link
+            href="/demo"
             className="inline-flex items-center gap-2 rounded-full border border-ink/20 bg-paper/70 px-6 py-4 text-base backdrop-blur transition-colors hover:border-ink"
           >
-            How it works
-            <ArrowDown aria-hidden className="size-4" />
-          </a>
+            Try the demo
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
         </div>
       </div>
 

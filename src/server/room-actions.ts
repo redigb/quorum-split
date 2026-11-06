@@ -38,12 +38,15 @@ async function persist(room: LoadedRoom, before: RoomState, after: RoomState) {
   }
 }
 
+/** A quién se refiere el evento (para que el libro mayor pueda mostrar nombre y monto). */
+const who = (event: RoomEvent) => ("participantId" in event ? { participantId: event.participantId } : {});
+
 /** Aplica un evento: máquina pura -> guardar -> ledger -> efectos en PayPal. */
 export async function applyEvent(room: LoadedRoom, event: RoomEvent, actor: string): Promise<RoomState> {
   const before = await stateOf(room);
   const { state, effects } = reduceRoom(before, event);
   await persist(room, before, state);
-  await logEvent(room.id, event.type, actor, { from: before.status, to: state.status });
+  await logEvent(room.id, event.type, actor, { from: before.status, to: state.status, ...who(event) });
   for (const effect of effects) await runEffect(room, state, effect);
   return (await readState(room)) ?? state;
 }
@@ -103,6 +106,11 @@ async function captureAll(room: LoadedRoom) {
 
   for (const [participantId, status] of Object.entries(current.payments)) {
     if (status !== "AUTHORIZED") continue;
+    // Amigo simulado del modo demo: no hay dinero real que cobrar, se da por cobrado.
+    if (room.participants.find((p) => p.id === participantId)?.simConfirmAt) {
+      current = (await step(room, current, { type: "CAPTURED", participantId }))!;
+      continue;
+    }
     const authId = await authorizationOf(room.id, participantId);
     try {
       if (!authId) throw new Error("sin autorización guardada");
@@ -127,7 +135,7 @@ async function captureAll(room: LoadedRoom) {
 async function step(room: LoadedRoom, before: RoomState, event: RoomEvent): Promise<RoomState> {
   const { state, effects } = reduceRoom(before, event);
   await persist(room, before, state);
-  await logEvent(room.id, event.type, "system", { from: before.status, to: state.status });
+  await logEvent(room.id, event.type, "system", { from: before.status, to: state.status, ...who(event) });
   for (const effect of effects) if (effect.type !== "CAPTURE_ALL") await runEffect(room, state, effect);
   return state;
 }

@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Your rooms — Quorum", robots: { in
 
 export default function RoomsPage() {
   return (
-    <AppShell>
+    <AppShell back={{ href: "/new", label: "New bill" }}>
       <Rooms />
     </AppShell>
   );
