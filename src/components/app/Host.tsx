@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, Clock, Copy, Dices, Pencil, Share2, X } from "lucide-react";
+import { Check, Clock, Copy, Dices, Pencil, Plus, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
+import { addSavedLink, findRoom } from "@/components/app/my-rooms";
 import { LedgerTable } from "@/components/app/LedgerTable";
 import { LIVE, Ring, STATUS, timeLeft } from "@/components/app/Participant";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +54,8 @@ export function Host({ code }: { code: string }) {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
+  const [newPerson, setNewPerson] = useState("");
+  const [links, setLinks] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [deadline, setDeadline] = useState<(typeof DEADLINES)[number]["value"]>("24");
 
@@ -73,6 +76,7 @@ export function Host({ code }: { code: string }) {
   const live = load.kind === "ok" && (LIVE.includes(status) || status === "DRAFT");
   useEffect(() => {
     const first = window.setTimeout(() => {
+      setLinks(Object.fromEntries((findRoom(code)?.links ?? []).map((l) => [l.id, l.url])));
       void refresh();
     }, 0);
     const poll = live ? window.setInterval(() => void refresh(), 3000) : undefined;
@@ -82,7 +86,7 @@ export function Host({ code }: { code: string }) {
       window.clearInterval(poll);
       window.clearInterval(tick);
     };
-  }, [live, refresh]);
+  }, [live, refresh, code]);
 
   if (load.kind === "loading") return <div className="h-64 animate-pulse rounded-3xl bg-paper-2" aria-label="Loading" />;
   if (load.kind !== "ok") {
@@ -110,7 +114,6 @@ export function Host({ code }: { code: string }) {
   const lucky = room.mode === "lucky";
   const allIn = room.participants.every((p) => p.luckyOk);
   const untaken = room.items.filter((i) => i.takenBy.length === 0).length;
-  const nameOf = (id: string) => room.participants.find((p) => p.id === id)?.name ?? "";
 
   async function copy(text: string, title: string) {
     try {
@@ -180,6 +183,43 @@ export function Host({ code }: { code: string }) {
       await refresh();
     } catch {
       toast({ tone: "error", title: "Couldn't remove", body: "The table may have just closed." });
+    }
+  }
+
+  async function addPerson(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newPerson.trim();
+    if (!name) return;
+    try {
+      const res = await fetch(`/api/rooms/${code}/participants`, {
+        method: "POST",
+        headers: { ...(await hostHeaders(token)), "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return toast({ tone: "error", title: "Couldn't add them", body: PEOPLE_ERRORS[data.error] ?? "Please try again." });
+      const url = `${window.location.origin}/r/${code}/p/${data.token}`;
+      addSavedLink(code, { id: data.id, name, url });
+      setLinks((l) => ({ ...l, [data.id]: url }));
+      setNewPerson("");
+      toast({ tone: "ok", title: `${name} added`, body: "Assign their items below. Copy their link so they can pay later." });
+      await refresh();
+    } catch {
+      toast({ tone: "error", title: "Couldn't add them", body: "Check your connection and try again." });
+    }
+  }
+
+  async function takeFor(itemId: string, participantId: string, taking: boolean) {
+    try {
+      const res = await fetch(`/api/rooms/${code}/take`, {
+        method: "POST",
+        headers: { ...(await hostHeaders(token)), "content-type": "application/json" },
+        body: JSON.stringify({ itemId, participantId, taking }),
+      });
+      if (!res.ok) throw new Error();
+      await refresh();
+    } catch {
+      toast({ tone: "error", title: "Couldn't save that", body: "The table may have just closed." });
     }
   }
 
@@ -351,6 +391,16 @@ export function Host({ code }: { code: string }) {
                   >
                     <Pencil aria-hidden className="size-4" />
                   </button>
+                  {links[p.id] && (
+                    <button
+                      type="button"
+                      aria-label={`Copy ${p.name}'s link`}
+                      onClick={() => void copy(links[p.id], "Their link copied")}
+                      className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-paper-3 hover:text-ink"
+                    >
+                      <Copy aria-hidden className="size-4" />
+                    </button>
+                  )}
                   {!p.isHost && (
                     <button
                       type="button"
@@ -372,6 +422,22 @@ export function Host({ code }: { code: string }) {
           );
         })}
       </ul>
+
+      {draft && (
+        <form onSubmit={addPerson} className="mt-3 flex gap-2">
+          <input
+            value={newPerson}
+            onChange={(e) => setNewPerson(e.target.value)}
+            placeholder="Add someone who isn't here"
+            aria-label="Name of the person to add"
+            maxLength={60}
+            className="min-w-0 flex-1 rounded-2xl border border-line bg-paper px-4 py-3 text-[15px] outline-none transition-colors placeholder:text-faint hover:bg-paper-2 focus:border-accent"
+          />
+          <Button type="submit" variant="ghost" disabled={!newPerson.trim()} aria-label="Add person" className="px-4">
+            <Plus aria-hidden className="size-5" />
+          </Button>
+        </form>
+      )}
 
       {draft && (
         <div className="mt-8">
@@ -405,11 +471,30 @@ export function Host({ code }: { code: string }) {
               <h2 className="mb-3 font-mono text-[11px] uppercase tracking-wide text-muted">Who had what</h2>
               <ul className="divide-y divide-line rounded-3xl border border-line bg-paper-2 px-4">
                 {room.items.map((i) => (
-                  <li key={i.id} className="flex items-center justify-between gap-3 py-3 text-[15px]">
-                    <span className="min-w-0 truncate">{i.name}</span>
-                    <span translate="no" className="shrink-0 font-mono text-[11px] uppercase text-muted">
-                      {i.takenBy.length ? i.takenBy.map(nameOf).join(", ") : "nobody yet"}
-                    </span>
+                  <li key={i.id} className="py-3 text-[15px]">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate">{i.name}</span>
+                      <span translate="no" className="shrink-0 font-mono text-sm tabular-nums text-muted">{money(i.lineTotalCents)}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {room.participants.map((p) => {
+                        const on = i.takenBy.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => void takeFor(i.id, p.id, !on)}
+                            translate="no"
+                            className={`rounded-full border px-3 py-1 text-[13px] transition-colors ${
+                              on ? "border-accent bg-accent text-paper" : "border-line bg-paper hover:bg-paper-3"
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </li>
                 ))}
               </ul>

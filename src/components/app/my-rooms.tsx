@@ -39,6 +39,18 @@ export function saveRoom(room: SavedRoom) {
   }
 }
 
+/** Guarda el enlace privado de alguien que el anfitrión sentó a mano (el servidor solo conserva su hash). */
+export function addSavedLink(code: string, link: { id: string; name: string; url: string }) {
+  try {
+    const rooms = parse(read());
+    const next = rooms.map((r) => (r.code === code ? { ...r, links: [...(r.links ?? []).filter((l) => l.id !== link.id), link] } : r));
+    localStorage.setItem(KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(EVENT));
+  } catch {
+    /* sin almacenamiento: el enlace se mostró al crearlo */
+  }
+}
+
 export function findRoom(code: string): SavedRoom | undefined {
   return parse(read()).find((r) => r.code === code);
 }
