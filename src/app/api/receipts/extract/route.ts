@@ -4,6 +4,9 @@ import { isSupportedCurrency } from "@/core/money";
 import { extractReceipt } from "@/server/ai/groq";
 import { receiptToDraft } from "@/server/ai/schemas";
 
+// El lector de visión puede tardar con fotos grandes: más margen que los 10 s por defecto.
+export const maxDuration = 30;
+
 const MAX_BYTES = 4 * 1024 * 1024;
 const TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 

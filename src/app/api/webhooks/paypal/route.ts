@@ -1,7 +1,7 @@
 import { TransitionError, type RoomEvent } from "@/core/room-machine";
 import { db } from "@/server/db/client";
 import { loadRoomById } from "@/server/db/rooms";
-import { verifyWebhook, WEBHOOK_EVENTS } from "@/server/paypal/client";
+import { PayPalError, verifyWebhook, WEBHOOK_EVENTS } from "@/server/paypal/client";
 import { applyEvent } from "@/server/room-actions";
 
 interface PayPalWebhook {
@@ -27,6 +27,8 @@ export async function POST(request: Request) {
   try {
     valid = await verifyWebhook(request.headers, raw);
   } catch (e) {
+    // PayPal rechaza como 400 una firma mal formada (certificado ajeno, campos inventados): es un impostor, no una caída.
+    if (e instanceof PayPalError && e.status === 400) return Response.json({ error: "invalid_signature" }, { status: 401 });
     console.error("webhook verify", e);
     return Response.json({ error: "verification_unavailable" }, { status: 500 }); // PayPal reintentará
   }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { formatMoney, SUPPORTED_CURRENCIES, sum, toCents, type Currency } from "@/core/money";
 import type { ExtraCharge } from "@/core/types";
+import { shrinkPhoto } from "@/lib/image";
 import { Button } from "@/components/ui/Button";
 import { MyRooms, saveMyToken, saveRoom } from "@/components/app/my-rooms";
 import { SaveRoom } from "@/components/app/SaveRoom";
@@ -114,7 +115,7 @@ export function NewBill() {
     setBusy(true);
     try {
       const form = new FormData();
-      form.set("image", file);
+      form.set("image", await shrinkPhoto(file));
       form.set("currency", currency);
       const { draft } = await api<{
         draft: {
