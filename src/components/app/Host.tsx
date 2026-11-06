@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { addSavedLink, findRoom } from "@/components/app/my-rooms";
+import { DrawOverlay } from "@/components/app/DrawOverlay";
 import { LedgerTable } from "@/components/app/LedgerTable";
 import { LIVE, Ring, STATUS, timeLeft } from "@/components/app/Participant";
 import { Button } from "@/components/ui/Button";
@@ -278,6 +279,7 @@ export function Host({ code }: { code: string }) {
 
   return (
     <section>
+      {lucky && room.grandTotalCents !== null && <DrawOverlay code={code} room={room} totalCents={room.grandTotalCents} />}
       <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
         {room.merchant ?? "Shared bill"}
         {left && room.status === "OPEN" && (

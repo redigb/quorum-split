@@ -20,6 +20,7 @@ interface TableView {
   me: string | null;
   status: string;
   mode: "fair" | "lucky";
+  demo?: boolean;
   merchant: string | null;
   currency: Currency;
   billTotalCents: number;
@@ -230,6 +231,11 @@ export function Table({ code, token: given }: { code: string; token?: string }) 
           A game between friends: if <strong className="font-semibold text-ink">everyone</strong> says yes, a card is drawn and one person pays the whole{" "}
           <span translate="no">{money(view.billTotalCents)}</span>. If anyone says no, nobody is drawn and nobody is charged.
         </p>
+        {view.demo && (
+          <p className="mt-5 rounded-2xl bg-accent-soft p-4 text-sm leading-relaxed">
+            <strong className="font-semibold">Demo.</strong> Maya, Leo and Sofia are simulated and already said yes. Press &quot;I&apos;m in&quot; and the card is drawn.
+          </p>
+        )}
         <Button className="mt-8 w-full" variant={meP?.luckyOk ? "ghost" : undefined} onClick={() => void setIn(!meP?.luckyOk)}>
           <Dices aria-hidden className="size-4" /> {meP?.luckyOk ? "I'm in — tap to back out" : "I'm in"}
         </Button>

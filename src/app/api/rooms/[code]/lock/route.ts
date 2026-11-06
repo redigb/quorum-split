@@ -1,11 +1,8 @@
-import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { TransitionError } from "@/core/room-machine";
 import { SplitError } from "@/core/split";
 import { guard } from "@/server/auth";
-import { db } from "@/server/db/client";
-import { logEvent } from "@/server/db/rooms";
-import { lockTable } from "@/server/lock";
+import { drawTable, lockTable } from "@/server/lock";
 
 const MAX_HOURS = 72; // "honor period" de PayPal
 
@@ -31,15 +28,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
       if (!room.participants.every((p) => p.luckyOk)) {
         return Response.json({ error: "not_everyone_in", message: "Everyone has to say yes before the draw." }, { status: 409 });
       }
-      // Sorteo: semilla aleatoria del servidor (crypto) -> índice. El hash de semilla+participantes queda guardado como comprobante.
-      const ids = room.participants.map((p) => p.id);
-      const seed = randomBytes(16).toString("hex");
-      const loserId = ids[parseInt(seed.slice(0, 8), 16) % ids.length];
-      const proof = createHash("sha256").update(`${seed}:${ids.join(",")}`).digest("hex");
-      const result = await lockTable(room, body.data.deadlineHours, body.data.beneficiaryEmail, "host", loserId);
-      await db().from("rooms").update({ draw_proof: proof, loser_id: loserId }).eq("id", room.id);
-      await logEvent(room.id, "DRAW", "system", { loserId, proof, seed, participants: ids });
-      return Response.json({ ...result, loserId });
+      return Response.json(await drawTable(room, body.data.deadlineHours, body.data.beneficiaryEmail));
     }
     return Response.json(await lockTable(room, body.data.deadlineHours, body.data.beneficiaryEmail));
   } catch (e) {

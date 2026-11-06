@@ -8,8 +8,10 @@ import { gsap, useGSAP } from "./gsap";
 /** Radio de las cartas como fracción del ancho (el mismo que el del anillo de quórum). */
 const RADIUS = 150 / 360;
 
-function Card({ i, winner, total }: { i: number; winner: number; total: number }) {
-  const p = PEOPLE[i];
+type Face = { id: string; name: string; hue: string };
+
+function Card({ i, winner, total, people, label }: { i: number; winner: number; total: number; people: Face[]; label?: string }) {
+  const p = people[i];
   const wins = i === winner;
   return (
     <div className="lk-card absolute left-1/2 top-1/2 -ml-[8.5%] -mt-[11.9%] aspect-[5/7] w-[17%] [perspective:900px]">
@@ -48,7 +50,7 @@ function Card({ i, winner, total }: { i: number; winner: number; total: number }
             <span className="w-full rounded-sm bg-hold py-[3px] text-center font-mono text-[clamp(.3rem,.95vw,.52rem)] font-bold uppercase leading-tight tracking-wider">
               pays it all
               <br />
-              {money(total)}
+              {label ?? money(total)}
             </span>
           ) : (
             <span className="flex w-full items-center justify-center gap-0.5 rounded-sm bg-ok-soft py-[3px] font-mono text-[clamp(.3rem,.95vw,.52rem)] font-bold uppercase tracking-wider text-ok">
@@ -71,11 +73,17 @@ export function LuckyDraw({
   total,
   instant,
   onDone,
+  people = PEOPLE,
+  label,
 }: {
   winner: number;
   total: number;
   instant: boolean;
   onDone: () => void;
+  /** Quiénes juegan (por defecto, los de la demo de la landing). */
+  people?: Face[];
+  /** Monto ya formateado (por defecto, dólares de la demo). */
+  label?: string;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const cb = useRef(onDone);
@@ -174,7 +182,7 @@ export function LuckyDraw({
         .to(flips[winner], { rotationY: 180, duration: 0.8, ease: "back.out(1.5)" }, ">-0.25")
         .to({}, { duration: 0.5 });
     },
-    { scope: root, dependencies: [winner, instant] },
+    { scope: root, dependencies: [winner, instant, people.length] },
   );
 
   if (instant) {
@@ -182,7 +190,7 @@ export function LuckyDraw({
       <div ref={root} className="pointer-events-none absolute inset-0 z-30" aria-hidden>
         <div style={{ transform: "scale(2.05)" }} className="absolute inset-0">
           <div className="absolute inset-0 [&_.lk-flip]:[transform:rotateY(180deg)]">
-            <Card i={winner} winner={winner} total={total} />
+            <Card i={winner} winner={winner} total={total} people={people} label={label} />
           </div>
         </div>
       </div>
@@ -191,8 +199,8 @@ export function LuckyDraw({
 
   return (
     <div ref={root} className="pointer-events-none absolute inset-0 z-30" aria-hidden>
-      {PEOPLE.map((p, i) => (
-        <Card key={p.id} i={i} winner={winner} total={total} />
+      {people.map((p, i) => (
+        <Card key={p.id} i={i} winner={winner} total={total} people={people} label={label} />
       ))}
     </div>
   );

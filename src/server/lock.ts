@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash, randomBytes } from "node:crypto";
 import { initialRoom, reduceRoom } from "@/core/room-machine";
 import { computeSplit } from "@/core/split";
 import { db } from "./db/client";
@@ -67,4 +68,19 @@ export async function lockTable(room: LoadedRoom, deadlineHours: number, benefic
     grandTotalCents: split.grandTotalCents,
     shares: split.shares.map((s) => ({ participantId: s.participantId, totalCents: s.totalCents, lines: s.lines })),
   };
+}
+
+/**
+ * "Feeling lucky": sortea quién paga todo y cierra la mesa. La semilla sale de `crypto` del servidor y el hash
+ * de semilla+participantes queda guardado como comprobante. `forceLoserId` solo lo usa la demo (y se avisa en pantalla).
+ */
+export async function drawTable(room: LoadedRoom, deadlineHours: number, beneficiaryEmail?: string, forceLoserId?: string) {
+  const ids = room.participants.map((p) => p.id);
+  const seed = randomBytes(16).toString("hex");
+  const loserId = forceLoserId ?? ids[parseInt(seed.slice(0, 8), 16) % ids.length];
+  const proof = createHash("sha256").update(`${seed}:${ids.join(",")}`).digest("hex");
+  const result = await lockTable(room, deadlineHours, beneficiaryEmail, forceLoserId ? "demo" : "host", loserId);
+  await db().from("rooms").update({ draw_proof: proof, loser_id: loserId }).eq("id", room.id);
+  await logEvent(room.id, "DRAW", "system", { loserId, proof, seed, participants: ids, rigged: !!forceLoserId });
+  return { ...result, loserId };
 }

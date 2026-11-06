@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db/client";
 import { identify, loadRoom, type LoadedRoom } from "./db/rooms";
+import { drawTable } from "./lock";
 import { applyEvent } from "./room-actions";
 
 /** El token viaja en `Authorization: Bearer <token>`, nunca en la URL de la API (los logs la guardan). */
@@ -36,6 +37,8 @@ export async function guard(request: Request, code: string, role: "host" | "any"
   }
   // Modo demo: los amigos simulados "confirman" cuando llega su hora (sin cron, al consultar la sala).
   if (room && room.status === "OPEN") room = await settleSimulated(room);
+  // Demo lucky: cuando quien prueba dice "I'm in", el sorteo corre solo (los amigos simulados ya aceptaron) y la carta cae en quien prueba.
+  if (room && room.status === "DRAFT" && room.mode === "lucky") room = await drawDemoIfReady(room);
   let who = room ? identify(room, bearer(request)) : null;
   // Sin token de sala: la dueña de la sala (cuenta) también es anfitriona, desde cualquier dispositivo.
   if (room && !who && room.ownerId) {
@@ -66,4 +69,15 @@ async function settleSimulated(room: LoadedRoom): Promise<LoadedRoom> {
     current = await loadRoom(room.code);
   }
   return current ?? room;
+}
+
+async function drawDemoIfReady(room: LoadedRoom): Promise<LoadedRoom> {
+  const guest = room.participants.find((p) => !p.simConfirmAt);
+  if (!guest || room.participants.every((p) => !p.simConfirmAt) || !room.participants.every((p) => p.luckyOk)) return room;
+  try {
+    await drawTable(room, 24, undefined, guest.id);
+  } catch {
+    /* otra consulta ya sorteó: no pasa nada */
+  }
+  return (await loadRoom(room.code)) ?? room;
 }

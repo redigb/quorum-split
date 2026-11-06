@@ -3,7 +3,7 @@ import { db } from "@/server/db/client";
 import { createRoom, loadRoom } from "@/server/db/rooms";
 import { lockTable } from "@/server/lock";
 
-const Body = z.object({ name: z.string().trim().min(1).max(40).default("You") });
+const Body = z.object({ name: z.string().trim().min(1).max(40).default("You"), mode: z.enum(["fair", "lucky"]).default("fair") });
 
 /** Una mesa de ejemplo ya armada: tres amigos simulados y quien prueba, que paga la última parte. */
 const ITEMS = [
@@ -38,23 +38,36 @@ export async function POST(request: Request) {
     });
 
     const room = (await loadRoom(created.code))!;
+    const lucky = body.data.mode === "lucky";
     const idOf = (name: string) => room.participants.find((p) => p.name === (name === "GUEST" ? guest : name))!.id;
-    const rows = ITEMS.flatMap((it) => {
+    const rows = lucky ? [] : ITEMS.flatMap((it) => {
       const item = room.bill.items.find((x) => x.name === it.name)!;
       return it.by.map((n) => ({ item_id: item.id, participant_id: idOf(n), weight: 1 }));
     });
-    const ins = await db().from("item_assignments").insert(rows);
-    if (ins.error) throw new Error(ins.error.message);
-
-    await lockTable((await loadRoom(created.code))!, 24, undefined, "demo");
-
     const now = Date.now();
-    for (const [name, secs] of Object.entries(CONFIRM_AFTER_S)) {
-      const { error } = await db()
-        .from("participants")
-        .update({ sim_confirm_at: new Date(now + secs * 1000).toISOString() })
-        .eq("id", idOf(name));
-      if (error) throw new Error(error.message);
+    if (lucky) {
+      // Feeling lucky: los amigos simulados ya dijeron que si; falta quien prueba. Al aceptar, el servidor sortea (ver auth.ts).
+      await db().from("rooms").update({ mode: "lucky" }).eq("id", room.id);
+      for (const name of Object.keys(CONFIRM_AFTER_S)) {
+        const { error } = await db()
+          .from("participants")
+          .update({ sim_confirm_at: new Date(now).toISOString(), lucky_ok: true })
+          .eq("id", idOf(name));
+        if (error) throw new Error(error.message);
+      }
+    } else {
+      const ins = await db().from("item_assignments").insert(rows);
+      if (ins.error) throw new Error(ins.error.message);
+
+      await lockTable((await loadRoom(created.code))!, 24, undefined, "demo");
+
+      for (const [name, secs] of Object.entries(CONFIRM_AFTER_S)) {
+        const { error } = await db()
+          .from("participants")
+          .update({ sim_confirm_at: new Date(now + secs * 1000).toISOString() })
+          .eq("id", idOf(name));
+        if (error) throw new Error(error.message);
+      }
     }
 
     const base = process.env.NEXT_PUBLIC_APP_URL ?? "";

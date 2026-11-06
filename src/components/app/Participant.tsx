@@ -5,6 +5,7 @@ import { Check, ChevronDown, Clock, Copy, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
+import { DrawOverlay } from "@/components/app/DrawOverlay";
 import { useToast } from "@/components/ui/Toaster";
 
 interface RoomView {
@@ -14,6 +15,7 @@ interface RoomView {
   demo?: boolean;
   mode?: "fair" | "lucky";
   loserId?: string | null;
+  grandTotalCents?: number | null;
   merchant: string | null;
   currency: Currency;
   deadlineAt: string | null;
@@ -152,7 +154,7 @@ function PayPalButton({
 }
 
 /** Aviso del modo demo: qué es de mentira y con qué cuenta se paga. Las credenciales Sandbox son opcionales (variables públicas). */
-function DemoNote() {
+function DemoNote({ lucky }: { lucky: boolean }) {
   const toast = useToast();
   const email = process.env.NEXT_PUBLIC_DEMO_BUYER_EMAIL;
   const password = process.env.NEXT_PUBLIC_DEMO_BUYER_PASSWORD;
@@ -168,8 +170,17 @@ function DemoNote() {
     <div className="mt-6 rounded-3xl border border-accent/30 bg-accent-soft p-5 text-[15px] leading-relaxed">
       <p className="font-semibold">Demo table</p>
       <p className="mt-1 text-muted">
-        Maya, Leo and Sofia are simulated and confirm on their own in a few seconds. You&apos;re the last one: pay with a{" "}
-        <strong className="font-semibold text-ink">PayPal Sandbox</strong> buyer account. Nothing real is charged.
+        {lucky ? (
+          <>
+            Maya, Leo and Sofia are simulated and said yes. In the demo the card <strong className="font-semibold text-ink">always lands on you</strong>, so you can test the payment with a{" "}
+            <strong className="font-semibold text-ink">PayPal Sandbox</strong> buyer account. In real tables the draw is random. Nothing real is charged.
+          </>
+        ) : (
+          <>
+            Maya, Leo and Sofia are simulated and confirm on their own in a few seconds. You&apos;re the last one: pay with a{" "}
+            <strong className="font-semibold text-ink">PayPal Sandbox</strong> buyer account. Nothing real is charged.
+          </>
+        )}
       </p>
       {email && password && (
         <div className="mt-4 space-y-2 text-sm">
@@ -273,6 +284,7 @@ export function Participant({ code, token }: { code: string; token: string }) {
 
   return (
     <section>
+      {room.mode === "lucky" && room.grandTotalCents != null && <DrawOverlay code={code} room={room} totalCents={room.grandTotalCents} />}
       <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
         {room.merchant ?? "Shared bill"}
         {left && room.status === "OPEN" && (
@@ -290,7 +302,7 @@ export function Participant({ code, token }: { code: string; token: string }) {
         <p className="mt-6 text-[15px] leading-relaxed text-muted">The organizer is still setting up the split. This page updates when it&apos;s ready — come back in a moment.</p>
       )}
 
-      {room.demo && room.status !== "DRAFT" && <DemoNote />}
+      {room.demo && room.status !== "DRAFT" && <DemoNote lucky={room.mode === "lucky"} />}
 
       {room.status !== "DRAFT" && (
         <>
