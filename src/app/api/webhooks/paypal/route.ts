@@ -17,6 +17,12 @@ interface PayPalWebhook {
 export async function POST(request: Request) {
   const raw = await request.text();
 
+  // Sin los 5 encabezados de firma no es PayPal: se rechaza sin gastar una llamada a su API de verificación.
+  const signed = ["paypal-auth-algo", "paypal-cert-url", "paypal-transmission-id", "paypal-transmission-sig", "paypal-transmission-time"].every(
+    (h) => request.headers.get(h),
+  );
+  if (!signed) return Response.json({ error: "invalid_signature" }, { status: 401 });
+
   let valid = false;
   try {
     valid = await verifyWebhook(request.headers, raw);
