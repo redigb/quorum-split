@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { LuckyDraw } from "@/components/landing/LuckyDraw";
 import { formatMoney, type Currency } from "@/core/money";
 
@@ -54,8 +55,10 @@ export function DrawOverlay({ code, room, totalCents }: { code: string; room: Ro
   const people = room.participants.map((p, i) => ({ id: p.id, name: p.name, hue: HUES[i % HUES.length] }));
   const close = () => setOpen(false);
 
-  return (
-    <div role="dialog" aria-modal="true" aria-label="The draw" className="fade-in fixed inset-0 z-[100] grid place-items-center bg-ink/92 p-4 backdrop-blur-sm">
+  // En el <body> y con z-index máximo: el botón de PayPal vive en un iframe con su propio apilado y, si el sorteo
+  // quedara dentro de la página, se dibujaría por encima de las cartas.
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label="The draw" style={{ zIndex: 2147483000 }} className="fade-in fixed inset-0 grid place-items-center bg-ink p-4">
       <div className="w-full max-w-[520px]">
         <p className="mb-4 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-paper/60">Feeling lucky · drawing…</p>
         <div className="relative mx-auto aspect-square w-full">
@@ -78,6 +81,7 @@ export function DrawOverlay({ code, room, totalCents }: { code: string; room: Ro
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
