@@ -1,5 +1,7 @@
 "use client";
 
+import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import { useEffect, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { hostHeaders } from "@/lib/auth-client";
@@ -14,14 +16,24 @@ interface Row {
   tone: "muted" | "hold" | "ok" | "accent";
 }
 
-const TONE = {
-  muted: "text-paper/60",
-  hold: "text-hold",
-  ok: "text-[#5ee39a]",
-  accent: "text-[#a99cff]",
-};
+const TONE_HEX = { muted: "#ffffff99", hold: "#f5b94a", ok: "#5ee39a", accent: "#a99cff" };
 
-/** El libro mayor de la landing, con datos reales: cada retención, cobro y cambio, con su monto y el estado en PayPal. */
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+const theme = themeQuartz.withParams({
+  backgroundColor: "#171412",
+  foregroundColor: "#fbf9ef",
+  headerBackgroundColor: "#171412",
+  headerTextColor: "#fbf9efa0",
+  borderColor: "#fbf9ef26",
+  rowHoverColor: "#fbf9ef0d",
+  fontFamily: "var(--font-mono), ui-monospace, monospace",
+  fontSize: 12,
+  headerFontSize: 10,
+  wrapperBorderRadius: 0,
+});
+
+/** El libro mayor de la landing en AG Grid (ordenable y filtrable), con datos reales: cada retención, cobro y cambio, con su monto y el estado en PayPal. */
 export function LedgerTable({ code, token, refreshKey }: { code: string; token: string; refreshKey: string }) {
   const [data, setData] = useState<{ currency: Currency; rows: Row[] } | null>(null);
 
@@ -42,46 +54,48 @@ export function LedgerTable({ code, token, refreshKey }: { code: string; token: 
 
   if (!data || data.rows.length === 0) return null;
 
+  const currency = data.currency;
+  const cols: ColDef<Row>[] = [
+    {
+      headerName: "Time",
+      field: "at",
+      width: 110,
+      valueFormatter: (p) => new Date(p.value as string).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      cellStyle: { color: "#ffffff80" },
+    },
+    { headerName: "Actor", field: "actor", width: 130 },
+    { headerName: "Event", field: "event", width: 160, cellStyle: (p) => ({ color: TONE_HEX[p.data?.tone ?? "muted"] }) },
+    { headerName: "Detail", field: "detail", flex: 1, minWidth: 200, cellStyle: { color: "#ffffffb3" } },
+    {
+      headerName: "Amount",
+      field: "amountCents",
+      width: 120,
+      type: "rightAligned",
+      valueFormatter: (p) => (p.value === null || p.value === undefined ? "—" : formatMoney(p.value as number, currency, "en-US")),
+    },
+    {
+      headerName: "PayPal",
+      field: "paypal",
+      width: 130,
+      valueFormatter: (p) => (p.value as string | null) ?? "—",
+      cellStyle: (p) => ({ color: p.value === "COMPLETED" ? "#5ee39a" : p.value === "AUTHORIZED" ? "#f5b94a" : p.value === "FAILED" ? "#ff8a85" : "#ffffff66" }),
+    },
+  ];
+
   return (
     <section aria-labelledby="ledger" className="mt-12">
       <h2 id="ledger" className="mb-3 font-mono text-[11px] uppercase tracking-wide text-muted">
         Ledger
       </h2>
-      <div className="overflow-x-auto rounded-3xl bg-ink text-paper shadow-[0_30px_60px_-40px_#171412a0]">
-        <table className="w-full min-w-[640px] font-mono text-[12px]">
-          <caption className="sr-only">Every event in this room, with amounts and PayPal status</caption>
-          <thead>
-            <tr className="border-b border-paper/15 text-left text-[10px] uppercase tracking-wider text-paper/50">
-              {["Time", "Actor", "Event", "Detail", "Amount", "PayPal"].map((h) => (
-                <th key={h} scope="col" className={`px-3.5 py-3 font-medium ${h === "Amount" ? "text-right" : ""}`}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody translate="no">
-            {data.rows.map((r, i) => (
-              <tr key={i} className="border-b border-paper/10 last:border-0 hover:bg-paper/5">
-                <td className="px-3.5 py-2.5 tabular-nums text-paper/50">
-                  {new Date(r.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                </td>
-                <td className="px-3.5 py-2.5">{r.actor}</td>
-                <td className={`px-3.5 py-2.5 ${TONE[r.tone]}`}>{r.event}</td>
-                <td className="px-3.5 py-2.5 text-paper/70">{r.detail}</td>
-                <td className="px-3.5 py-2.5 text-right tabular-nums">
-                  {r.amountCents === null ? "—" : formatMoney(r.amountCents, data.currency, "en-US")}
-                </td>
-                <td
-                  className={`px-3.5 py-2.5 ${
-                    r.paypal === "COMPLETED" ? TONE.ok : r.paypal === "AUTHORIZED" ? TONE.hold : r.paypal === "FAILED" ? "text-[#ff8a85]" : "text-paper/40"
-                  }`}
-                >
-                  {r.paypal ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="overflow-hidden rounded-3xl bg-ink shadow-[0_30px_60px_-40px_#171412a0]" translate="no">
+        <AgGridReact<Row>
+          theme={theme}
+          rowData={data.rows}
+          columnDefs={cols}
+          defaultColDef={{ sortable: true, resizable: true, filter: true }}
+          domLayout="autoHeight"
+          suppressCellFocus
+        />
       </div>
     </section>
   );
