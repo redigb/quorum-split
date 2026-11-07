@@ -48,6 +48,8 @@ No installation needed — use the hosted demo.
 
 3. Approve the authorization. When your hold lands, the room captures everything and shows **Settled**, with every step in the Ledger.
 
+No account is needed: the demo and every table link work without signing in. Email sign-in (magic link, only for the "Your rooms" list across devices) is optional and uses Supabase's shared mail service, which has a very low hourly limit.
+
 To try the real flow with real people: go to `/new`, upload a receipt photo or dictate the bill, send the single table link to friends, and everybody pays with Sandbox accounts.
 
 ## Stack

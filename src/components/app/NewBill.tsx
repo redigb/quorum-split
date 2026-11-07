@@ -332,7 +332,7 @@ export function NewBill() {
             ))}
           </ul>
           <Button variant="ghost" className="mt-3" onClick={() => setLines((ls) => [...ls, { key: uid(), name: "", quantity: 1, cents: 0 }])}>
-            <Plus aria-hidden className="size-4" /> Add item
+            <Plus aria-hidden className="size-4" /> <span translate="no">Add item</span>
           </Button>
           <div className="mt-3">
             <VoiceButton
