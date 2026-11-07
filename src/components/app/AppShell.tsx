@@ -17,6 +17,8 @@ export function AppShell({ children, back }: { children: ReactNode; back?: { hre
               QUORUM<span className="text-accent">.</span>
             </Link>
             <nav aria-label="App" className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-wide text-muted">
+              <Link href="/demo" className="transition-colors hover:text-ink">Demo</Link>
+              <span aria-hidden>·</span>
               <Link href="/rooms" className="transition-colors hover:text-ink">Your rooms</Link>
               <span aria-hidden>·</span>
               <span>Sandbox</span>

@@ -32,6 +32,12 @@ export function Nav() {
 
         <div className="flex items-center gap-2">
           <Link
+            href="/demo"
+            className="hidden px-3 py-2 font-mono text-[13px] uppercase tracking-wide text-muted transition-colors hover:text-ink sm:inline"
+          >
+            Demo
+          </Link>
+          <Link
             href="/rooms"
             className="hidden px-3 py-2 font-mono text-[13px] uppercase tracking-wide text-muted transition-colors hover:text-ink sm:inline"
           >

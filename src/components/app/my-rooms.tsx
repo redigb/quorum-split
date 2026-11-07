@@ -103,7 +103,7 @@ export function MyRooms() {
         {rooms.map((r) => (
           <li key={r.code}>
             <Link
-              href={r.hostPath}
+              href={r.merchant?.includes("(demo)") ? `/t/${r.code}` : r.hostPath} // el demo se retoma desde la mesa de quien lo prueba
               className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-paper-2 px-4 py-3 transition-colors hover:bg-paper-3"
             >
               <span className="min-w-0">

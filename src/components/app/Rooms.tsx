@@ -4,7 +4,7 @@ import { Archive, ArchiveRestore, ArrowUpRight, LogOut, Plus, Search, X } from "
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
-import { claimLocalRooms } from "@/components/app/my-rooms";
+import { claimLocalRooms, MyRooms } from "@/components/app/my-rooms";
 import { EmailLogin } from "@/components/app/EmailLogin";
 import { STATUS_LABEL } from "@/components/app/status";
 import { Button } from "@/components/ui/Button";
@@ -174,11 +174,17 @@ export function Rooms() {
     return (
       <section className="stagger">
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Your bills</p>
-        <h1 className="display mt-2 text-5xl sm:text-6xl">Pick up where you left off.</h1>
+        <h1 className="display mt-2 text-5xl sm:text-6xl">Your bills, right here.</h1>
         <p className="mb-8 mt-4 text-[15px] leading-relaxed text-muted">
-          Enter your email and we&apos;ll send you a sign-in link — no password. You&apos;ll see every bill you started, from any device.
+          No sign-up needed: the bills you started on this device are below. Add your email only if you want them on every device — we&apos;ll send a link, no password.
         </p>
-        <EmailLogin redirectPath="/rooms" />
+        <EmailLogin redirectPath="/rooms" cta="Keep them on every device" />
+        <MyRooms />
+        <p className="mt-8 text-sm text-muted">
+          Nothing here yet?{" "}
+          <Link href="/demo" className="text-ink underline underline-offset-4 hover:text-accent">Try the demo</Link> or{" "}
+          <Link href="/new" className="text-ink underline underline-offset-4 hover:text-accent">split a bill</Link>.
+        </p>
       </section>
     );
   }
