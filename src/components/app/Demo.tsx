@@ -40,7 +40,7 @@ export function Demo() {
       const d = (await res.json()) as { code: string; hostUrl: string; myToken: string; tablePath: string };
       saveMyToken(d.code, d.myToken);
       saveRoom({ code: d.code, hostPath: d.hostUrl.replace(/^https?:\/\/[^/]+/, ""), merchant: "Trattoria Quorum (demo)", createdAt: Date.now() });
-      router.replace(d.tablePath);
+      router.push(d.tablePath);
     } catch {
       setFailed(true);
       setMode(null);
