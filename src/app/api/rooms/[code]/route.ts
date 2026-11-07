@@ -1,6 +1,7 @@
 import { progress, type PaymentStatus } from "@/core/room-machine";
 import { computeSplit } from "@/core/split";
 import { guard } from "@/server/auth";
+import { db } from "@/server/db/client";
 
 /**
  * Estado de la sala para la UI. Lo que cada rol ve:
@@ -55,4 +56,21 @@ export async function GET(request: Request, ctx: { params: Promise<{ code: strin
     billTotalCents: room.bill.items.reduce((n, i) => n + i.lineTotalCents, 0) + room.bill.charges.reduce((n, c) => n + c.amountCents, 0),
     ...(isHost ? { shares: split?.shares ?? null } : {}),
   });
+}
+
+/**
+ * "Borra" una sala de DEMO: la archiva y desaparece de la lista de quien la probo. No se borra la fila: el libro mayor
+ * es append-only (un trigger lo impide), y esa auditoria es parte del producto. Solo anfitrion y solo demos.
+ */
+export async function DELETE(request: Request, ctx: { params: Promise<{ code: string }> }) {
+  const { code } = await ctx.params;
+  const g = await guard(request, code, "host");
+  if (!g.ok) return g.response;
+  if (!g.room.participants.some((p) => p.simConfirmAt)) return Response.json({ error: "not_a_demo" }, { status: 403 });
+  const { error } = await db().from("rooms").update({ archived_at: new Date().toISOString() }).eq("id", g.room.id);
+  if (error) {
+    console.error("DELETE room", error.message);
+    return Response.json({ error: "delete_failed" }, { status: 500 });
+  }
+  return Response.json({ ok: true });
 }

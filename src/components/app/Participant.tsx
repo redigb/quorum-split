@@ -3,9 +3,11 @@
 import { loadScript, type PayPalNamespace } from "@paypal/paypal-js";
 import { Check, ChevronDown, Clock, Copy, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatMoney, type Currency } from "@/core/money";
 import { DrawOverlay } from "@/components/app/DrawOverlay";
+import { deleteDemo, findRoom } from "@/components/app/my-rooms";
 import { useToast } from "@/components/ui/Toaster";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
@@ -155,8 +157,10 @@ function PayPalButton({
 }
 
 /** Aviso del modo demo: qué es de mentira y con qué cuenta se paga. Las credenciales Sandbox son opcionales (variables públicas). */
-function DemoNote({ lucky }: { lucky: boolean }) {
+function DemoNote({ lucky, code }: { lucky: boolean; code: string }) {
   const toast = useToast();
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
   const email = process.env.NEXT_PUBLIC_DEMO_BUYER_EMAIL;
   const password = process.env.NEXT_PUBLIC_DEMO_BUYER_PASSWORD;
   const copy = async (text: string, what: string) => {
@@ -202,6 +206,27 @@ function DemoNote({ lucky }: { lucky: boolean }) {
           ))}
         </div>
       )}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <Link href="/demo" className="underline underline-offset-4 hover:text-accent">Try the other mode</Link>
+        {findRoom(code) && (
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={async () => {
+              setDeleting(true);
+              const ok = await deleteDemo(code);
+              if (ok) router.push("/demo");
+              else {
+                setDeleting(false);
+                toast({ tone: "error", title: "Couldn't delete the demo", body: "Please try again." });
+              }
+            }}
+            className="text-muted underline underline-offset-4 transition-colors hover:text-danger disabled:opacity-40"
+          >
+            {deleting ? "Deleting…" : "Delete this demo"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -303,7 +328,7 @@ export function Participant({ code, token }: { code: string; token: string }) {
         <p className="mt-6 text-[15px] leading-relaxed text-muted">The organizer is still setting up the split. This page updates when it&apos;s ready — come back in a moment.</p>
       )}
 
-      {room.demo && room.status !== "DRAFT" && <DemoNote lucky={room.mode === "lucky"} />}
+      {room.demo && room.status !== "DRAFT" && <DemoNote lucky={room.mode === "lucky"} code={code} />}
 
       {room.status !== "DRAFT" && (
         <>

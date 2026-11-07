@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 /**
  * "Tus salas": el enlace del anfitrión ES su llave (no hay cuentas). Lo guardamos en este navegador
@@ -51,6 +51,32 @@ export function addSavedLink(code: string, link: { id: string; name: string; url
   }
 }
 
+export function forgetRoom(code: string) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(parse(read()).filter((r) => r.code !== code)));
+    localStorage.removeItem(`quorum.me.${code.toUpperCase()}`);
+    window.dispatchEvent(new Event(EVENT));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
+/** Borra una sala de demo en el servidor (con la llave de anfitrion guardada aqui) y la olvida en este navegador. */
+export async function deleteDemo(code: string): Promise<boolean> {
+  const room = findRoom(code);
+  const token = room ? new URL(room.hostPath, "http://x").searchParams.get("t") : null;
+  try {
+    if (token) {
+      const res = await fetch(`/api/rooms/${code}`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } });
+      if (!res.ok && res.status !== 404) return false;
+    }
+    forgetRoom(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function findRoom(code: string): SavedRoom | undefined {
   return parse(read()).find((r) => r.code === code);
 }
@@ -92,7 +118,15 @@ function subscribe(cb: () => void) {
 export function MyRooms() {
   const raw = useSyncExternalStore(subscribe, read, () => "");
   const rooms = useMemo(() => parse(raw), [raw]);
+  const [busy, setBusy] = useState<string | null>(null);
   if (rooms.length === 0) return null;
+  const isDemo = (r: SavedRoom) => !!r.merchant?.includes("(demo)");
+  const demos = rooms.filter(isDemo);
+  async function remove(codes: string[]) {
+    setBusy(codes.join());
+    for (const c of codes) await deleteDemo(c);
+    setBusy(null);
+  }
 
   return (
     <section aria-labelledby="my-rooms" className="mt-12">
@@ -101,10 +135,10 @@ export function MyRooms() {
       </h2>
       <ul className="space-y-2">
         {rooms.map((r) => (
-          <li key={r.code}>
+          <li key={r.code} className="flex items-center gap-2">
             <Link
               href={r.merchant?.includes("(demo)") ? `/t/${r.code}` : r.hostPath} // el demo se retoma desde la mesa de quien lo prueba
-              className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-paper-2 px-4 py-3 transition-colors hover:bg-paper-3"
+              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl border border-line bg-paper-2 px-4 py-3 transition-colors hover:bg-paper-3"
             >
               <span className="min-w-0">
                 <span className="block truncate text-[15px]">{r.merchant ?? "Shared bill"}</span>
@@ -114,9 +148,30 @@ export function MyRooms() {
               </span>
               <ArrowUpRight aria-hidden className="size-4 shrink-0 text-muted" />
             </Link>
+            {isDemo(r) && (
+              <button
+                type="button"
+                aria-label={`Delete demo ${r.code}`}
+                disabled={busy !== null}
+                onClick={() => void remove([r.code])}
+                className="grid size-11 shrink-0 place-items-center rounded-full border border-line text-muted transition-colors hover:bg-paper-3 hover:text-danger disabled:opacity-40"
+              >
+                <Trash2 aria-hidden className="size-4" />
+              </button>
+            )}
           </li>
         ))}
       </ul>
+      {demos.length > 1 && (
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => void remove(demos.map((d) => d.code))}
+          className="mt-3 text-sm text-muted underline underline-offset-4 transition-colors hover:text-danger disabled:opacity-40"
+        >
+          Delete all {demos.length} demos
+        </button>
+      )}
     </section>
   );
 }

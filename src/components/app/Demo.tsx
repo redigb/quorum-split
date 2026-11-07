@@ -41,6 +41,8 @@ export function Demo() {
       saveMyToken(d.code, d.myToken);
       saveRoom({ code: d.code, hostPath: d.hostUrl.replace(/^https?:\/\/[^/]+/, ""), merchant: "Trattoria Quorum (demo)", createdAt: Date.now() });
       router.push(d.tablePath);
+      // Si la pantalla se conserva al salir, que vuelva al selector en vez de quedarse "cargando".
+      window.setTimeout(() => setMode(null), 2500);
     } catch {
       setFailed(true);
       setMode(null);
