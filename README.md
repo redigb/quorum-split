@@ -43,8 +43,8 @@ No installation needed — use the hosted demo.
 
    | | |
    |---|---|
-   | Email | `TODO_BUYER_EMAIL@personal.example.com` |
-   | Password | `TODO_BUYER_PASSWORD` |
+   | Email | `sb-rge4o53516231@personal.example.com` |
+   | Password | `M/LDK5se` |
 
 3. Approve the authorization. When your hold lands, the room captures everything and shows **Settled**, with every step in the Ledger.
 

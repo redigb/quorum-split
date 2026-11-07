@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { isSupportedCurrency } from "@/core/money";
 import { extractReceipt } from "@/server/ai/groq";
 import { receiptToDraft } from "@/server/ai/schemas";
+import { limited } from "@/server/rate-limit";
 
 // El lector de visión puede tardar con fotos grandes: más margen que los 10 s por defecto.
 export const maxDuration = 30;
@@ -12,6 +13,8 @@ const TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 /** Foto del ticket -> borrador de cuenta (sin asignar). No guarda nada: el borrador lo confirma el anfitrión. */
 export async function POST(request: Request) {
+  const tooMany = limited(request, "extract", 12, 10 * 60_000);
+  if (tooMany) return tooMany;
   const form = await request.formData().catch(() => null);
   const file = form?.get("image");
   if (!(file instanceof File)) return Response.json({ error: "missing_image" }, { status: 400 });

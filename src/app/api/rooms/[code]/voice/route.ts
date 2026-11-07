@@ -4,6 +4,7 @@ import { applyAssignmentProposal } from "@/server/ai/schemas";
 import { guard } from "@/server/auth";
 import { db } from "@/server/db/client";
 import { logEvent } from "@/server/db/rooms";
+import { limited } from "@/server/rate-limit";
 
 export const maxDuration = 30;
 
@@ -21,6 +22,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const g = await guard(request, code, "any");
   if (!g.ok) return g.response;
   const { room, who } = g;
+  const tooMany = limited(request, "room-voice", 30, 10 * 60_000);
+  if (tooMany) return tooMany;
   if (room.status !== "DRAFT" || room.mode !== "fair") return Response.json({ error: "not_available" }, { status: 409 });
 
   const form = await request.formData().catch(() => null);
@@ -33,7 +36,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ code: stri
   const speaker = who.participantId ? room.participants.find((p) => p.id === who.participantId) : undefined;
 
   try {
-    const transcript = (await transcribe(file, `voice.${EXT[base]}`)).trim();
+    const transcript = (await transcribe(file, `voice.${EXT[base]}`, String(form?.get("lang") ?? ""))).trim();
     if (!transcript) return Response.json({ error: "no_speech" }, { status: 422 });
 
     const raw = await proposeAssignments(

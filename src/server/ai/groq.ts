@@ -92,10 +92,15 @@ export function dictateReceipt(text: string) {
 }
 
 /** Nota de voz -> texto (Whisper en Groq). */
-export async function transcribe(audio: Blob, filename = "audio.webm"): Promise<string> {
+export async function transcribe(audio: Blob, filename = "audio.webm", lang?: string): Promise<string> {
   const form = new FormData();
   form.append("file", audio, filename);
   form.append("model", MODELS.speech);
+  form.append("temperature", "0");
+  // Whisper adivina mal el idioma en clips cortos; si la persona lo indica, se fija. Sin indicarlo, se detecta.
+  if (lang === "es" || lang === "en") form.append("language", lang);
+  // Sesga hacia cuentas de restaurante: platos, cantidades y precios en cifras ("2 pizzas a 20").
+  form.append("prompt", lang === "en" ? "Restaurant bill: 2 pizzas at 20 each, a beer 10, tip 5." : "Cuenta de restaurante: 2 pizzas a 20 cada una, una cerveza 10, propina 5. Restaurant bill.");
   const res = await fetch(`${BASE}/audio/transcriptions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey()}` },

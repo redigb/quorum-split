@@ -13,7 +13,8 @@ const ERRORS: Record<string, string> = {
   no_speech: "We didn't hear anything. Try again a bit closer to the mic.",
   audio_too_long: "That was too long. Keep it under 30 seconds.",
   unreadable_proposal: "We couldn't match that to the items. Say the dish names, or tap them instead.",
-  unreadable_dictation: "We couldn't find items with prices in that. Try: “two pizzas at twenty each and a beer, ten”.",
+  unreadable_dictation: "We couldn't find items with prices in that. Say each dish with its price: “two pizzas at twenty each and a beer, ten” / “dos pizzas a veinte y una cerveza a diez”.",
+  rate_limited: "Too many tries in a row. Wait a minute and try again.",
   not_available: "The table changed mode. Reload the page.",
 };
 
@@ -45,6 +46,7 @@ export function VoiceButton({
   const toast = useToast();
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
   const [secs, setSecs] = useState(0);
+  const [lang, setLang] = useState<"es" | "en">("en");
   const rec = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timer = useRef<number | undefined>(undefined);
@@ -63,10 +65,12 @@ export function VoiceButton({
       const form = new FormData();
       form.set("audio", new File([blob], "voice", { type: blob.type }));
       for (const [k, v] of Object.entries(fields ?? {})) form.set(k, v);
+      form.set("lang", lang);
       const res = await fetch(url, { method: "POST", headers: await getHeaders(), body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast({ tone: "error", title: "Couldn't use that", body: ERRORS[data.error] ?? "Please try again, or tap the items." });
+        const heard = typeof data.transcript === "string" && data.transcript ? ` We heard: “${data.transcript}”.` : "";
+        toast({ tone: "error", title: "Couldn't use that", body: (ERRORS[data.error] ?? "Please try again, or tap the items.") + heard });
       } else {
         const note = describe(data as never);
         toast(note);
@@ -122,6 +126,7 @@ export function VoiceButton({
 
   const recording = state === "recording";
   return (
+    <div>
     <button
       type="button"
       disabled={state === "sending"}
@@ -141,5 +146,21 @@ export function VoiceButton({
         {recording ? `Listening… ${secs}s · tap to send` : state === "sending" ? "Understanding…" : label}
       </span>
     </button>
+    <div role="group" aria-label="Spoken language" className="mt-2 flex items-center justify-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-muted">
+      <span>Language</span>
+      {(["en", "es"] as const).map((l) => (
+        <button
+          key={l}
+          type="button"
+          aria-pressed={lang === l}
+          disabled={state !== "idle"}
+          onClick={() => setLang(l)}
+          className={`rounded-full px-2.5 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-accent ${lang === l ? "bg-ink text-paper" : "hover:bg-paper-3"}`}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+    </div>
   );
 }
