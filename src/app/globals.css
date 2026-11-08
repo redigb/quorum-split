@@ -217,7 +217,7 @@ body {
 }
 
 /* Los hijos directos de una pantalla entran en cascada, de arriba abajo. */
-.stagger > * { animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.stagger > * { animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 .stagger > *:nth-child(2) { animation-delay: 50ms; }
 .stagger > *:nth-child(3) { animation-delay: 100ms; }
 .stagger > *:nth-child(4) { animation-delay: 150ms; }

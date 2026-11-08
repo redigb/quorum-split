@@ -67,7 +67,7 @@ export function Select<T extends string>({
   };
 
   return (
-    <div ref={root} className="relative">
+    <div ref={root} className={`relative ${open ? "z-30" : ""}`}>
       <span id={`${id}-label`} className="mb-1.5 block font-mono text-[11px] uppercase tracking-wide text-muted">
         {label}
       </span>
