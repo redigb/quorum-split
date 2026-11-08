@@ -157,7 +157,10 @@ export function NewBill() {
   const describeDictation = (d: Dictation) => ({
     tone: "ok" as const,
     title: `Added ${d.draft.items.length} item${d.draft.items.length > 1 ? "s" : ""}`,
-    body: `We heard: “${d.transcript}”. Check the amounts.`,
+    body:
+      d.draft.items.map((i) => `${i.quantity > 1 ? `${i.quantity}× ` : ""}${i.name} ${formatMoney(i.lineTotalCents, d.draft.currency, "en-US")}`).join(" · ") +
+      (d.draft.charges.length ? ` · ${d.draft.charges.map((c) => `${c.label} ${formatMoney(c.amountCents, d.draft.currency, "en-US")}`).join(" · ")}` : "") +
+      ". Check the amounts.",
   });
   function applyDictation(d: Dictation) {
     const fresh = lines.every((l) => !l.name.trim() && l.cents === 0); // sin nada útil aún: la voz manda
